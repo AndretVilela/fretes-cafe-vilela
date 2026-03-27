@@ -1,0 +1,1567 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Gestão de Fretes — Café Vilela</title>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;500;600&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
+<style>
+/* ===== RESET & VARIÁVEIS ===== */
+* { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+:root {
+  --cafe:       #3C2A1E;
+  --cafe-mid:   #6B4226;
+  --cafe-light: #C8956C;
+  --cream:      #FAF7F2;
+  --cream-dark: #F0EBE3;
+  --gold:       #C9A84C;
+  --text:       #1A1209;
+  --text-mid:   #5C4A35;
+  --text-light: #9C8470;
+  --border:     rgba(60,42,30,0.12);
+  --border-mid: rgba(60,42,30,0.22);
+  --radius:     14px;
+  --shadow:     0 2px 16px rgba(60,42,30,0.08);
+  --green:      #2E7D32;
+  --green-bg:   #E8F5E9;
+  --blue:       #1565C0;
+  --blue-bg:    #E3F2FD;
+  --purple:     #4527A0;
+  --purple-bg:  #EDE7F6;
+  --red:        #C62828;
+  --red-bg:     #FFEBEE;
+  --orange:     #E65100;
+}
+
+body {
+  font-family: 'DM Sans', sans-serif;
+  background: var(--cream);
+  min-height: 100vh;
+  color: var(--text);
+  overscroll-behavior-y: contain;
+}
+
+/* ===== APP WRAPPER ===== */
+.app { max-width: 900px; margin: 0 auto; padding: 1.25rem; }
+
+/* ===== HEADER ===== */
+.header {
+  background: var(--cafe);
+  border-radius: var(--radius);
+  padding: 1.1rem 1.5rem;
+  margin-bottom: 1.5rem;
+  display: flex; align-items: center; justify-content: space-between;
+  flex-wrap: wrap; gap: 10px;
+  position: sticky; top: 0; z-index: 50;
+  box-shadow: 0 4px 20px rgba(60,42,30,0.25);
+}
+.header-brand { display: flex; align-items: center; gap: 12px; }
+.header-brand-icon {
+  width: 38px; height: 38px;
+  background: rgba(255,255,255,0.1);
+  border-radius: 9px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 20px; flex-shrink: 0;
+}
+.header-brand h1 {
+  font-family: 'Playfair Display', serif;
+  font-size: 18px; font-weight: 600; color: #fff; letter-spacing: -0.3px;
+}
+.header-brand p { font-size: 11px; color: rgba(255,255,255,0.5); margin-top: 1px; font-weight: 300; }
+.header-right { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+
+/* NAV TABS */
+.nav-tabs {
+  display: flex; gap: 3px;
+  background: rgba(255,255,255,0.08);
+  border-radius: 10px; padding: 3px;
+}
+.nav-btn {
+  background: transparent; border: none;
+  color: rgba(255,255,255,0.6);
+  padding: 6px 12px; border-radius: 7px;
+  font-size: 12px; font-family: 'DM Sans', sans-serif;
+  cursor: pointer; transition: all 0.15s; font-weight: 400;
+  display: flex; align-items: center; gap: 5px;
+  white-space: nowrap;
+}
+.nav-btn:hover { color: #fff; background: rgba(255,255,255,0.1); }
+.nav-btn.active { background: rgba(255,255,255,0.18); color: #fff; font-weight: 500; }
+.badge {
+  background: var(--gold); color: var(--cafe);
+  border-radius: 20px; font-size: 10px;
+  padding: 1px 6px; font-weight: 600;
+}
+
+/* BOTÃO MICROSOFT */
+.btn-ms {
+  background: rgba(255,255,255,0.1);
+  border: 1px solid rgba(255,255,255,0.2);
+  color: rgba(255,255,255,0.85); border-radius: 8px;
+  padding: 6px 11px; font-size: 12px;
+  font-family: 'DM Sans',sans-serif; cursor: pointer;
+  display: flex; align-items: center; gap: 6px;
+  transition: all 0.15s; white-space: nowrap;
+}
+.btn-ms:hover { background: rgba(255,255,255,0.18); }
+.btn-ms.connected { background: rgba(76,175,80,0.2); border-color: rgba(76,175,80,0.4); color: #A5D6A7; }
+.sync-dot { width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0; }
+.sync-dot.ok      { background: #4CAF50; }
+.sync-dot.pending { background: #FFA726; }
+.sync-dot.error   { background: #EF5350; }
+
+/* ===== SCREENS ===== */
+.screen { display: none; animation: fadeIn 0.2s ease; }
+.screen.active { display: block; }
+@keyframes fadeIn { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: none; } }
+
+/* ===== CARDS ===== */
+.card {
+  background: #fff;
+  border: 0.5px solid var(--border);
+  border-radius: var(--radius);
+  padding: 1.25rem 1.5rem;
+  margin-bottom: 1rem;
+  box-shadow: var(--shadow);
+}
+.card-header {
+  display: flex; align-items: center; justify-content: space-between;
+  margin-bottom: 1rem; flex-wrap: wrap; gap: 8px;
+}
+.section-title {
+  font-size: 11px; font-weight: 500; color: var(--text-light);
+  text-transform: uppercase; letter-spacing: 0.8px; margin-bottom: 1rem;
+}
+
+/* ===== FORM ===== */
+.form-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(185px, 1fr)); gap: 0.875rem; }
+.form-group { display: flex; flex-direction: column; gap: 5px; }
+.form-group label { font-size: 12px; color: var(--text-mid); font-weight: 500; }
+.form-group input,
+.form-group select,
+.form-group textarea {
+  border: 0.5px solid var(--border-mid);
+  border-radius: 9px; padding: 10px 12px;
+  font-size: 14px; background: var(--cream);
+  color: var(--text); font-family: 'DM Sans', sans-serif;
+  outline: none; transition: border-color 0.15s; width: 100%;
+}
+.form-group input:focus,
+.form-group select:focus,
+.form-group textarea:focus {
+  border-color: var(--cafe-mid); background: #fff;
+  box-shadow: 0 0 0 3px rgba(107,66,38,0.08);
+}
+.form-group textarea { resize: vertical; min-height: 72px; }
+.form-group select { cursor: pointer; }
+.form-group input[type="number"] { -moz-appearance: textfield; }
+.form-group input[type="number"]::-webkit-inner-spin-button { -webkit-appearance: none; }
+.form-readonly {
+  background: var(--cream-dark) !important;
+  color: var(--text-mid) !important;
+  cursor: default;
+}
+
+/* ===== BOTÕES ===== */
+.btn {
+  border: none; border-radius: 10px;
+  padding: 11px 22px; font-size: 14px;
+  font-family: 'DM Sans', sans-serif; font-weight: 500;
+  cursor: pointer; transition: all 0.15s;
+  display: inline-flex; align-items: center; gap: 7px;
+  white-space: nowrap;
+}
+.btn-primary { background: var(--cafe); color: #fff; width: 100%; justify-content: center; }
+.btn-primary:hover { background: var(--cafe-mid); }
+.btn-primary:disabled { background: var(--text-light); cursor: not-allowed; }
+.btn-secondary {
+  background: var(--cream-dark); color: var(--text);
+  border: 0.5px solid var(--border-mid);
+}
+.btn-secondary:hover { background: var(--cream); }
+.btn-sm { padding: 7px 14px; font-size: 12px; border-radius: 8px; }
+.btn-map {
+  background: #1A73E8; color: #fff;
+  text-decoration: none;
+  border-radius: 8px; padding: 7px 13px;
+  font-size: 12px; font-weight: 500;
+  font-family: 'DM Sans', sans-serif;
+  display: inline-flex; align-items: center; gap: 5px;
+  transition: all 0.15s;
+}
+.btn-map:hover { background: #1557B0; transform: translateY(-1px); }
+.btn-danger { background: var(--red); color: #fff; }
+.btn-danger:hover { opacity: 0.85; }
+.btn-green { background: var(--green); color: #fff; }
+.btn-green:hover { opacity: 0.85; }
+
+/* ===== LOCK OVERLAY ===== */
+.lock-overlay {
+  position: absolute; inset: 0; z-index: 50;
+  background: rgba(250,247,242,0.93);
+  border-radius: var(--radius);
+  display: flex; flex-direction: column;
+  align-items: center; justify-content: center;
+  gap: 14px; text-align: center; padding: 2rem;
+  backdrop-filter: blur(4px);
+}
+.lock-overlay-icon { font-size: 44px; }
+.lock-overlay h2 {
+  font-family: 'Playfair Display', serif;
+  font-size: 19px; font-weight: 600; color: var(--cafe);
+}
+.lock-overlay p { font-size: 13px; color: var(--text-mid); max-width: 300px; line-height: 1.6; }
+
+/* ===== STATUS PILLS ===== */
+.pill {
+  display: inline-flex; align-items: center; gap: 4px;
+  padding: 3px 10px; border-radius: 20px;
+  font-size: 11px; font-weight: 600;
+}
+.pill::before { content: ''; width: 5px; height: 5px; border-radius: 50%; background: currentColor; flex-shrink: 0; }
+.pill-agendado  { background: var(--blue-bg);   color: var(--blue);   }
+.pill-em-rota   { background: var(--green-bg);  color: var(--green);  }
+.pill-concluido { background: var(--purple-bg); color: var(--purple); }
+.pill-cancelado { background: var(--red-bg);    color: var(--red);    }
+
+/* ===== LISTA HISTÓRICO ===== */
+.hist-list { display: flex; flex-direction: column; gap: 8px; }
+.hist-item {
+  background: #fff; border: 0.5px solid var(--border);
+  border-radius: 12px; padding: 0.875rem 1.1rem;
+  display: grid; align-items: center; gap: 10px;
+  cursor: pointer; transition: background 0.15s;
+  box-shadow: var(--shadow);
+}
+.hist-item:hover { background: var(--cream); }
+.hi-data  { font-size: 12px; font-weight: 500; color: var(--text-light); }
+.hi-hora  { font-size: 11px; color: var(--text-light); margin-top: 2px; }
+.hi-title { font-size: 14px; font-weight: 500; color: var(--text); }
+.hi-sub   { font-size: 12px; color: var(--text-light); margin-top: 2px; }
+.hi-sacas { font-size: 13px; font-weight: 500; color: var(--text-mid); white-space: nowrap; }
+.placa {
+  font-family: monospace; font-size: 11px; font-weight: 600;
+  background: var(--cream-dark); padding: 2px 7px; border-radius: 4px;
+  color: var(--cafe); letter-spacing: 0.03em;
+}
+
+/* ===== PROPRIEDADES GRID ===== */
+.prop-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px,1fr)); gap: 12px; }
+.prop-card {
+  background: #fff; border: 0.5px solid var(--border);
+  border-radius: 12px; padding: 1rem 1.1rem;
+  box-shadow: var(--shadow); transition: all 0.15s;
+}
+.prop-card:hover { border-color: var(--cafe-light); transform: translateY(-1px); }
+.prop-nome { font-size: 14px; font-weight: 600; color: var(--cafe); margin-bottom: 2px; }
+.prop-produtor { font-size: 12px; color: var(--text-mid); margin-bottom: 8px; }
+.prop-gps {
+  font-family: monospace; font-size: 11px; color: var(--green);
+  background: var(--green-bg); padding: 4px 8px; border-radius: 5px;
+  margin-bottom: 8px; display: inline-block;
+}
+.prop-sem-gps {
+  font-size: 11px; color: var(--orange);
+  background: #FFF3E0; padding: 4px 8px; border-radius: 5px;
+  margin-bottom: 8px; display: inline-block;
+  border: 1px solid #FFCC80;
+}
+.prop-obs { font-size: 11px; color: var(--text-light); font-style: italic; margin-bottom: 8px; }
+.prop-tags { display: flex; flex-wrap: wrap; gap: 5px; margin-bottom: 8px; }
+.prop-tag {
+  font-size: 10px; padding: 2px 7px; border-radius: 20px;
+  background: var(--cream-dark); color: var(--text-mid); font-weight: 500;
+}
+.prop-actions { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; }
+
+/* ===== GPS BOX ===== */
+.gps-info-box {
+  border-radius: 8px; padding: 10px 12px;
+  display: flex; align-items: center; justify-content: space-between;
+  gap: 10px; flex-wrap: wrap; margin-top: 8px;
+}
+.gps-info-box.ok  { background: var(--green-bg); border: 1px solid #A5D6A7; }
+.gps-info-box.sem { background: #FFF3E0; border: 1px solid #FFCC80; }
+.gps-coords { font-family: monospace; font-size: 11px; color: var(--green); }
+
+/* ===== MODAL ===== */
+.modal-overlay {
+  display: none; position: fixed; inset: 0;
+  background: rgba(26,18,9,0.55); z-index: 200;
+  align-items: center; justify-content: center;
+  padding: 1rem; backdrop-filter: blur(2px);
+}
+.modal-overlay.open { display: flex; }
+.modal {
+  background: #fff; border-radius: 18px;
+  padding: 0; max-width: 540px; width: 100%;
+  max-height: 92vh; overflow-y: auto;
+  box-shadow: 0 12px 50px rgba(26,18,9,0.25);
+}
+.modal-head {
+  background: var(--cafe);
+  padding: 1.1rem 1.4rem;
+  border-radius: 18px 18px 0 0;
+  display: flex; align-items: center; justify-content: space-between;
+}
+.modal-head h2 {
+  font-family: 'Playfair Display', serif;
+  font-size: 17px; font-weight: 600; color: #fff;
+}
+.modal-close {
+  background: rgba(255,255,255,0.12); border: none;
+  border-radius: 50%; width: 30px; height: 30px;
+  font-size: 15px; cursor: pointer; color: rgba(255,255,255,0.7);
+  display: flex; align-items: center; justify-content: center;
+  transition: background 0.15s;
+}
+.modal-close:hover { background: rgba(255,255,255,0.22); color: #fff; }
+.modal-body { padding: 1.25rem 1.4rem; }
+.modal-foot {
+  padding: 1rem 1.4rem;
+  border-top: 0.5px solid var(--border);
+  display: flex; gap: 8px; flex-wrap: wrap;
+  background: var(--cream); border-radius: 0 0 18px 18px;
+}
+.modal-foot button { flex: 1; min-width: 100px; }
+.modal-row {
+  display: flex; justify-content: space-between;
+  padding: 8px 0; border-bottom: 0.5px solid var(--border);
+  font-size: 13px;
+}
+.modal-row:last-child { border-bottom: none; }
+.modal-row span:first-child { color: var(--text-light); flex-shrink: 0; margin-right: 12px; }
+.modal-row span:last-child { font-weight: 500; color: var(--text); text-align: right; }
+
+/* ===== CONFIG ===== */
+.cfg-box {
+  background: #FDF6EF; border: 1px solid rgba(107,66,38,0.15);
+  border-radius: 12px; padding: 1.1rem 1.25rem; margin-bottom: 1rem;
+}
+.cfg-box h3 { font-size: 13px; font-weight: 600; color: var(--cafe); margin-bottom: 4px; }
+.cfg-box p  { font-size: 12px; color: var(--cafe-mid); line-height: 1.6; }
+.cfg-row { display: flex; gap: 8px; margin-top: 10px; }
+.cfg-row input {
+  flex: 1; border: 1px solid rgba(107,66,38,0.22);
+  border-radius: 8px; padding: 9px 11px; font-size: 13px;
+  background: #fff; color: var(--text);
+  font-family: 'DM Sans',sans-serif; outline: none;
+}
+.cfg-row input:focus { border-color: var(--cafe-mid); }
+.cfg-save {
+  background: var(--cafe); color: #fff; border: none;
+  border-radius: 8px; padding: 9px 15px; font-size: 13px;
+  font-family: 'DM Sans',sans-serif; cursor: pointer; white-space: nowrap;
+}
+.cfg-save:hover { background: var(--cafe-mid); }
+
+/* ===== EMPTY STATE ===== */
+.empty { text-align: center; padding: 2.5rem 1rem; color: var(--text-light); }
+.empty-icon { font-size: 40px; margin-bottom: 10px; opacity: 0.6; }
+.empty p { font-size: 13px; }
+
+/* ===== TOASTS ===== */
+.toast {
+  position: fixed; bottom: 1.5rem; right: 1.5rem;
+  padding: 11px 16px; border-radius: 10px; font-size: 13px;
+  font-weight: 500; font-family: 'DM Sans',sans-serif;
+  z-index: 400; opacity: 0; transform: translateY(8px);
+  transition: all 0.25s; pointer-events: none; max-width: 300px;
+  line-height: 1.4;
+}
+.toast.ok  { background: #2E7D32; color: #fff; }
+.toast.err { background: #C62828; color: #fff; }
+.toast.show { opacity: 1; transform: translateY(0); }
+
+/* ===== ONEDRIVE ESTRUTURA ===== */
+.od-tree {
+  background: var(--cream); border-radius: 10px;
+  padding: 1rem 1.1rem; font-size: 12px;
+  color: var(--text-light); line-height: 2;
+  border: 0.5px solid var(--border);
+}
+.od-tree .folder { color: var(--cafe-mid); font-weight: 500; }
+.od-tree .file   { color: var(--text-light); }
+.od-tree .note   { color: var(--cafe-light); font-style: italic; }
+
+/* ===== FILTRO BAR ===== */
+.filter-bar {
+  display: flex; gap: 8px; flex-wrap: wrap; align-items: center;
+  margin-bottom: 1rem;
+}
+.filter-bar select,
+.filter-bar input {
+  border: 0.5px solid var(--border-mid);
+  border-radius: 8px; padding: 7px 10px;
+  font-size: 12px; background: var(--cream);
+  color: var(--text); font-family: 'DM Sans', sans-serif;
+  outline: none; cursor: pointer;
+}
+.filter-bar select:focus,
+.filter-bar input:focus { border-color: var(--cafe-mid); }
+
+/* ===== SUMMARY CARDS ===== */
+.summary-row {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px,1fr));
+  gap: 10px; margin-bottom: 1.25rem;
+}
+.summary-card {
+  background: #fff; border: 0.5px solid var(--border);
+  border-radius: 12px; padding: 0.875rem 1rem;
+  box-shadow: var(--shadow);
+  position: relative; overflow: hidden;
+}
+.summary-card::after {
+  content: ''; position: absolute;
+  bottom: 0; left: 0; right: 0; height: 3px;
+  background: var(--cafe-light);
+}
+.summary-card.green::after { background: var(--green); }
+.summary-card.blue::after  { background: var(--blue);  }
+.summary-card.gold::after  { background: var(--gold);  }
+.summary-lbl { font-size: 10px; font-weight: 500; color: var(--text-light); text-transform: uppercase; letter-spacing: 0.7px; margin-bottom: 5px; }
+.summary-val { font-family: 'Playfair Display', serif; font-size: 22px; font-weight: 600; color: var(--cafe); }
+.summary-sub { font-size: 11px; color: var(--text-light); margin-top: 2px; }
+
+/* ===== PROGRESSO DA PROP ===== */
+.progress-hint {
+  font-size: 12px; color: var(--text-mid); margin-top: 6px;
+  padding: 8px 10px; background: var(--cream-dark);
+  border-radius: 7px; border-left: 3px solid var(--cafe-light);
+}
+</style>
+</head>
+<body>
+<div class="app">
+
+  <!-- ===== HEADER ===== -->
+  <div class="header">
+    <div class="header-brand">
+      <div class="header-brand-icon">🚛</div>
+      <div>
+        <h1>Gestão de Fretes</h1>
+        <p id="header-date"></p>
+      </div>
+    </div>
+    <div class="header-right">
+      <div id="sync-wrap" style="display:none;align-items:center;gap:6px">
+        <div class="sync-dot pending" id="sync-dot"></div>
+        <span id="sync-txt" style="font-size:11px;color:rgba(255,255,255,0.65)"></span>
+      </div>
+      <button id="btn-ms" class="btn-ms" onclick="handleMSAuth()">
+        <svg width="15" height="15" viewBox="0 0 21 21"><rect x="1" y="1" width="9" height="9" fill="#f25022"/><rect x="11" y="1" width="9" height="9" fill="#7fba00"/><rect x="1" y="11" width="9" height="9" fill="#00a4ef"/><rect x="11" y="11" width="9" height="9" fill="#ffb900"/></svg>
+        Conectar Microsoft
+      </button>
+      <div class="nav-tabs">
+        <button class="nav-btn active" onclick="showScreen('novo', this)">+ Frete</button>
+        <button class="nav-btn" onclick="showScreen('historico', this)">Histórico <span class="badge" id="badge-hist">0</span></button>
+        <button class="nav-btn" onclick="showScreen('propriedades', this)">Propriedades <span class="badge" id="badge-prop">0</span></button>
+        <button class="nav-btn" onclick="showScreen('config', this)">Config</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== SCREEN: NOVO FRETE ===== -->
+  <div class="screen active" id="screen-novo" style="position:relative">
+
+    <!-- LOCK -->
+    <div class="lock-overlay" id="form-lock">
+      <div class="lock-overlay-icon">🔒</div>
+      <h2>Conexão necessária</h2>
+      <p>Para registrar fretes é necessário estar conectado ao Microsoft 365 (contato@cafevilela.com.br).</p>
+      <button class="btn btn-primary" style="width:auto;padding:11px 24px" onclick="handleMSAuth()">
+        <svg width="16" height="16" viewBox="0 0 21 21"><rect x="1" y="1" width="9" height="9" fill="#f25022"/><rect x="11" y="1" width="9" height="9" fill="#7fba00"/><rect x="1" y="11" width="9" height="9" fill="#00a4ef"/><rect x="11" y="11" width="9" height="9" fill="#ffb900"/></svg>
+        Conectar Microsoft
+      </button>
+    </div>
+
+    <!-- DADOS PRINCIPAIS -->
+    <div class="card">
+      <div class="section-title">Dados do Frete</div>
+      <div class="form-grid">
+        <div class="form-group">
+          <label>Data</label>
+          <input type="date" id="f-data">
+        </div>
+        <div class="form-group">
+          <label>Horário de Saída</label>
+          <input type="time" id="f-hora">
+        </div>
+        <div class="form-group">
+          <label>Motorista</label>
+          <select id="f-motorista">
+            <option value="Carlos">Carlos</option>
+            <option value="João">João</option>
+            <option value="Pedro">Pedro</option>
+            <option value="Outro">Outro</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>Veículo / Placa</label>
+          <input type="text" id="f-veiculo" placeholder="Ex: ABC-1234 · Truck">
+        </div>
+      </div>
+    </div>
+
+    <!-- PROPRIEDADE -->
+    <div class="card">
+      <div class="section-title">Propriedade de Origem</div>
+      <div class="form-group" style="margin-bottom:0.875rem">
+        <label>Selecionar propriedade cadastrada</label>
+        <select id="f-prop-sel" onchange="onPropSelect()">
+          <option value="">— Selecione ou preencha manualmente —</option>
+        </select>
+      </div>
+      <div id="prop-preview" style="display:none;margin-bottom:0.875rem"></div>
+      <div class="form-grid">
+        <div class="form-group">
+          <label>Produtor / Fazenda</label>
+          <input type="text" id="f-produtor" placeholder="Nome do produtor">
+        </div>
+        <div class="form-group">
+          <label>Município</label>
+          <input type="text" id="f-municipio" placeholder="Cidade — MG">
+        </div>
+      </div>
+    </div>
+
+    <!-- CARGA -->
+    <div class="card">
+      <div class="section-title">Produto e Carga</div>
+      <div class="form-grid">
+        <div class="form-group">
+          <label>Tipo de Café</label>
+          <select id="f-tipo">
+            <option value="Café em Coco">Café em Coco</option>
+            <option value="Café Cereja">Café Cereja</option>
+            <option value="Café Bóia">Café Bóia</option>
+            <option value="Café Verde (Beneficiado)">Café Verde (Beneficiado)</option>
+            <option value="Café Escolha">Café Escolha</option>
+            <option value="Outro">Outro</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>Quantidade (sacas 60 kg)</label>
+          <input type="number" id="f-sacas" placeholder="0" min="0" step="1" oninput="calcPeso()">
+        </div>
+        <div class="form-group">
+          <label>Peso total (kg)</label>
+          <input type="number" id="f-peso" class="form-readonly" readonly placeholder="Calculado automaticamente">
+        </div>
+        <div class="form-group">
+          <label>Destino Final</label>
+          <input type="text" id="f-destino" placeholder="Ex: Armazém Vilela — Capitólio">
+        </div>
+      </div>
+    </div>
+
+    <!-- COMPLEMENTAR -->
+    <div class="card">
+      <div class="section-title">Informações Complementares</div>
+      <div class="form-grid">
+        <div class="form-group">
+          <label>Nº NF / Ticket Pesagem</label>
+          <input type="text" id="f-nf" placeholder="Ex: NF-2026-001">
+        </div>
+        <div class="form-group">
+          <label>Distância estimada (km)</label>
+          <input type="number" id="f-km" placeholder="0" min="0">
+        </div>
+        <div class="form-group">
+          <label>Valor do Frete (R$)</label>
+          <input type="number" id="f-valor" placeholder="0,00" step="0.01" min="0">
+        </div>
+      </div>
+      <div class="form-group" style="margin-top:0.875rem">
+        <label>Observações</label>
+        <textarea id="f-obs" placeholder="Anotações, condições de acesso, observações da carga..."></textarea>
+      </div>
+    </div>
+
+    <button class="btn btn-primary" onclick="salvarFrete()" style="margin-top:0.25rem">
+      Salvar e Sincronizar Frete
+    </button>
+  </div><!-- /screen-novo -->
+
+  <!-- ===== SCREEN: HISTÓRICO ===== -->
+  <div class="screen" id="screen-historico">
+    <div class="card">
+      <div class="card-header">
+        <div>
+          <div class="section-title" style="margin-bottom:2px">Fretes — <span id="hist-mes"></span></div>
+          <div style="font-size:11px;color:var(--text-light)">Mês atual. Histórico completo no OneDrive.</div>
+        </div>
+        <div style="display:flex;gap:8px;align-items:center;">
+          <div id="hist-loading" style="display:none;font-size:12px;color:var(--text-light)">⏳ Carregando...</div>
+        </div>
+      </div>
+
+      <!-- Resumo -->
+      <div class="summary-row" id="summary-row"></div>
+
+      <!-- Filtros -->
+      <div class="filter-bar">
+        <select id="filtro-status" onchange="renderHist()">
+          <option value="">Todos os status</option>
+          <option value="Agendado">Agendado</option>
+          <option value="Em Rota">Em Rota</option>
+          <option value="Concluído">Concluído</option>
+          <option value="Cancelado">Cancelado</option>
+        </select>
+        <input type="text" id="filtro-busca" placeholder="🔍 Buscar produtor ou fazenda..." oninput="renderHist()" style="min-width:200px">
+      </div>
+
+      <div id="hist-container">
+        <div class="empty"><div class="empty-icon">🚛</div><p>Nenhum frete registrado este mês.</p></div>
+      </div>
+    </div>
+  </div><!-- /screen-historico -->
+
+  <!-- ===== SCREEN: PROPRIEDADES ===== -->
+  <div class="screen" id="screen-propriedades">
+    <div class="card">
+      <div class="card-header">
+        <div>
+          <div class="section-title" style="margin-bottom:2px">Propriedades Rurais</div>
+          <div style="font-size:11px;color:var(--text-light)">Clientes e fazendas com localização GPS para rota do motorista.</div>
+        </div>
+        <button class="btn btn-secondary btn-sm" onclick="openPropModal()">+ Nova Propriedade</button>
+      </div>
+      <div id="prop-container">
+        <div class="empty"><div class="empty-icon">📍</div><p>Nenhuma propriedade cadastrada.</p></div>
+      </div>
+    </div>
+  </div><!-- /screen-propriedades -->
+
+  <!-- ===== SCREEN: CONFIG ===== -->
+  <div class="screen" id="screen-config">
+    <div class="card">
+      <div class="section-title">Integração Microsoft 365</div>
+
+      <div class="cfg-box">
+        <h3>Client ID e Tenant ID</h3>
+        <p>IDs do registro de aplicativo no portal Azure (portal.azure.com). Estes campos já estão preenchidos com as credenciais da Café Vilela.</p>
+        <div class="cfg-row">
+          <input type="text" id="cfg-client" placeholder="Client ID">
+          <button class="cfg-save" onclick="salvarCfg()">Salvar</button>
+        </div>
+        <div class="cfg-row" style="margin-top:6px">
+          <input type="text" id="cfg-tenant" placeholder="Tenant ID">
+        </div>
+      </div>
+
+      <div class="cfg-box">
+        <h3>Pasta raiz no OneDrive</h3>
+        <p>Pasta onde serão criados os arquivos de fretes e clientes.</p>
+        <div class="cfg-row">
+          <input type="text" id="cfg-path" placeholder="Ex: Fretes">
+          <button class="cfg-save" onclick="salvarPath()">Salvar</button>
+        </div>
+      </div>
+
+      <div style="margin-top:1.25rem">
+        <div class="section-title">Status da Conexão</div>
+        <div id="cfg-status" style="font-size:13px;color:var(--text-light);padding:4px 0">Não conectado.</div>
+        <button class="btn btn-secondary" style="margin-top:10px;width:100%" onclick="handleMSAuth()">
+          Conectar / Reconectar Microsoft 365
+        </button>
+      </div>
+
+      <div style="margin-top:1.5rem">
+        <div class="section-title">Estrutura criada no OneDrive</div>
+        <div class="od-tree">
+          📁 <span class="folder">Fretes/</span><br>
+          &nbsp;&nbsp;&nbsp;📊 <span class="file">Fretes_<span id="ano-atual"></span>.xlsx</span>
+          <span class="note"> — aba por mês (Janeiro, Fevereiro...)</span><br>
+          &nbsp;&nbsp;&nbsp;📊 <span class="file">Clientes_Propriedades.xlsx</span>
+          <span class="note"> — cadastro de fazendas e GPS</span><br>
+          &nbsp;&nbsp;&nbsp;📁 <span class="folder">Localização/</span>
+          <span class="note"> — arquivos de localização Google Maps</span>
+        </div>
+      </div>
+
+      <div style="margin-top:1.25rem">
+        <div class="section-title">Sobre o sistema</div>
+        <div style="font-size:12px;color:var(--text-light);line-height:2">
+          Versão 1.0 — Gestão de Fretes · Café Vilela<br>
+          Conta: contato@cafevilela.com.br<br>
+          GitHub: andretvilela.github.io/fretes-cafe-vilela/<br>
+          Dados locais: mês atual no dispositivo<br>
+          Dados na nuvem: histórico completo no OneDrive
+        </div>
+      </div>
+    </div>
+  </div><!-- /screen-config -->
+
+</div><!-- /app -->
+
+<!-- ===== MODAL: DETALHE FRETE ===== -->
+<div class="modal-overlay" id="modal-frete">
+  <div class="modal">
+    <div class="modal-head">
+      <h2 id="modal-frete-title">Frete</h2>
+      <button class="modal-close" onclick="closeModal('frete')">✕</button>
+    </div>
+    <div class="modal-body" id="modal-frete-body"></div>
+    <div class="modal-foot" id="modal-frete-foot"></div>
+  </div>
+</div>
+
+<!-- ===== MODAL: PROPRIEDADE ===== -->
+<div class="modal-overlay" id="modal-prop">
+  <div class="modal">
+    <div class="modal-head">
+      <h2 id="modal-prop-title">📍 Propriedade Rural</h2>
+      <button class="modal-close" onclick="closeModal('prop')">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="section-title">Dados do Produtor / Cliente</div>
+      <div class="form-grid" style="margin-bottom:1rem">
+        <div class="form-group">
+          <label>Nome da Propriedade / Fazenda</label>
+          <input type="text" id="p-nome" placeholder="Ex: Fazenda Boa Vista">
+        </div>
+        <div class="form-group">
+          <label>Nome do Produtor</label>
+          <input type="text" id="p-produtor" placeholder="Nome completo">
+        </div>
+        <div class="form-group">
+          <label>Município / UF</label>
+          <input type="text" id="p-municipio" placeholder="Ex: Capitólio — MG">
+        </div>
+        <div class="form-group">
+          <label>Telefone</label>
+          <input type="tel" id="p-telefone" placeholder="(35) 99999-9999">
+        </div>
+      </div>
+
+      <div class="section-title">Localização GPS</div>
+      <div style="background:var(--cream);border-radius:10px;padding:1rem;margin-bottom:1rem;border:0.5px solid var(--border)">
+        <p style="font-size:12px;color:var(--text-mid);margin-bottom:10px;line-height:1.6">
+          <strong>Como obter:</strong> Abra o Google Maps → pressione sobre o local da propriedade → as coordenadas aparecem no topo do menu. Copie e cole nos campos abaixo.
+        </p>
+        <div class="form-grid" style="margin-bottom:10px">
+          <div class="form-group">
+            <label>Latitude</label>
+            <input type="text" id="p-lat" placeholder="-20.123456" oninput="previewGPS()">
+          </div>
+          <div class="form-group">
+            <label>Longitude</label>
+            <input type="text" id="p-lng" placeholder="-46.123456" oninput="previewGPS()">
+          </div>
+        </div>
+        <button class="btn btn-secondary btn-sm" onclick="usarGPSAtual()" style="margin-bottom:10px">
+          🎯 Usar minha localização atual
+        </button>
+        <div id="gps-preview"></div>
+      </div>
+
+      <div class="section-title">Informações Adicionais</div>
+      <div class="form-grid" style="margin-bottom:0.875rem">
+        <div class="form-group">
+          <label>Tags</label>
+          <div style="display:flex;flex-wrap:wrap;gap:6px;margin-top:4px" id="tags-check">
+            <label class="tag-lbl"><input type="checkbox" value="Arábica"> Arábica</label>
+            <label class="tag-lbl"><input type="checkbox" value="Conilon"> Conilon</label>
+            <label class="tag-lbl"><input type="checkbox" value="Orgânico"> Orgânico</label>
+            <label class="tag-lbl"><input type="checkbox" value="Acesso Difícil"> Acesso Difícil</label>
+            <label class="tag-lbl"><input type="checkbox" value="Estrada Vicinal"> Est. Vicinal</label>
+          </div>
+        </div>
+      </div>
+      <div class="form-group">
+        <label>Observações / Referências de Acesso</label>
+        <textarea id="p-obs" placeholder="Portão azul, 2km após a ponte, estrada de terra no km 12..." style="min-height:56px"></textarea>
+      </div>
+    </div>
+    <div class="modal-foot">
+      <button class="btn btn-secondary" onclick="closeModal('prop')">Cancelar</button>
+      <button class="btn btn-primary" id="btn-salvar-prop" onclick="salvarPropriedade()">Salvar Propriedade</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast ok"  id="toast-ok"></div>
+<div class="toast err" id="toast-err"></div>
+
+<style>
+.tag-lbl {
+  display: flex; align-items: center; gap: 4px;
+  font-size: 12px; color: var(--text-mid); cursor: pointer;
+  padding: 4px 8px; border-radius: 6px;
+  border: 0.5px solid var(--border-mid); background: var(--cream);
+  transition: all 0.15s;
+}
+.tag-lbl:hover { border-color: var(--cafe-light); }
+.tag-lbl input { margin: 0; }
+</style>
+
+<script>
+'use strict';
+
+// =====================================================================
+//  CONSTANTES
+// =====================================================================
+const CLIENT_ID   = 'ff4e57e2-4fc1-4b2e-8e4a-28a2df5a20c9';
+const TENANT_ID   = '9a66e204-c69d-486c-97ff-40f69be9595f';
+const REDIRECT_URI = 'https://andretvilela.github.io/fretes-cafe-vilela/';
+const MS_SCOPES   = 'Files.ReadWrite User.Read offline_access';
+const LOGIN_HINT  = 'contato@cafevilela.com.br';
+const TOKEN_KEY   = 'frt_ms_token';
+const TOKEN_EXP   = 'frt_ms_token_exp';
+const MESES = ['Janeiro','Fevereiro','Março','Abril','Maio','Junho',
+               'Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
+
+// =====================================================================
+//  ESTADO
+// =====================================================================
+let msToken = null;
+let refreshTimer = null;
+let dadosFretes = [];
+let dadosPropriedades = [];
+let editandoPropId = null;
+let freteDetalheId = null;
+
+let clientId = localStorage.getItem('frt_client_id') || CLIENT_ID;
+let tenantId = localStorage.getItem('frt_tenant_id') || TENANT_ID;
+let odPath   = localStorage.getItem('frt_od_path')   || 'Fretes';
+
+// =====================================================================
+//  INIT
+// =====================================================================
+document.addEventListener('DOMContentLoaded', () => {
+  const h = new Date(), pad = n => String(n).padStart(2,'0');
+  document.getElementById('header-date').textContent =
+    h.toLocaleDateString('pt-BR',{weekday:'long',day:'numeric',month:'long',year:'numeric'});
+  document.getElementById('hist-mes').textContent =
+    MESES[h.getMonth()] + ' ' + h.getFullYear();
+  document.getElementById('ano-atual').textContent = h.getFullYear();
+  document.getElementById('cfg-client').value = clientId;
+  document.getElementById('cfg-tenant').value = tenantId;
+  document.getElementById('cfg-path').value   = odPath;
+  document.getElementById('f-data').value =
+    `${h.getFullYear()}-${pad(h.getMonth()+1)}-${pad(h.getDate())}`;
+  document.getElementById('f-hora').value = '07:00';
+
+  // Carrega dados locais
+  try {
+    const k = `frt_${h.getFullYear()}_${h.getMonth()}`;
+    dadosFretes = JSON.parse(localStorage.getItem(k) || '[]');
+  } catch(e) { dadosFretes = []; }
+  try {
+    dadosPropriedades = JSON.parse(localStorage.getItem('frt_props') || '[]');
+  } catch(e) { dadosPropriedades = []; }
+
+  updateBadges();
+  checkToken();
+
+  // Fechar modais clicando fora
+  document.querySelectorAll('.modal-overlay').forEach(el => {
+    el.addEventListener('click', e => { if(e.target===el) el.classList.remove('open'); });
+  });
+});
+
+// =====================================================================
+//  NAVEGAÇÃO
+// =====================================================================
+function showScreen(name, btn) {
+  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+  document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
+  document.getElementById('screen-' + name).classList.add('active');
+  if(btn) btn.classList.add('active');
+  if(name === 'historico')    { renderHist(); if(msToken) carregarOneDrive().catch(()=>{}); }
+  if(name === 'propriedades') { renderProps(); if(msToken) carregarPropsOneDrive().catch(()=>{}); }
+}
+
+function updateBadges() {
+  document.getElementById('badge-hist').textContent = dadosFretes.length;
+  document.getElementById('badge-prop').textContent = dadosPropriedades.length;
+  atualizarSelectProp();
+}
+
+// =====================================================================
+//  TOKEN / AUTH
+// =====================================================================
+function salvarToken(t, exp) {
+  const at = Date.now() + ((parseInt(exp)||3600) - 120) * 1000;
+  localStorage.setItem(TOKEN_KEY, t);
+  localStorage.setItem(TOKEN_EXP, at.toString());
+}
+function tokenSalvo() {
+  const t = localStorage.getItem(TOKEN_KEY);
+  const e = parseInt(localStorage.getItem(TOKEN_EXP)||'0');
+  return (t && e > Date.now()) ? t : null;
+}
+function agendarRefresh(exp) {
+  if(refreshTimer) clearTimeout(refreshTimer);
+  refreshTimer = setTimeout(silentRefresh, Math.max(((parseInt(exp)||3600)-180)*1000, 10000));
+}
+function silentRefresh() {
+  const iframe = document.createElement('iframe');
+  iframe.style.display = 'none';
+  iframe.src = `https://login.microsoftonline.com/${tenantId}/oauth2/v2.0/authorize`
+    + `?client_id=${clientId}&response_type=token`
+    + `&redirect_uri=${encodeURIComponent(REDIRECT_URI)}`
+    + `&scope=${encodeURIComponent(MS_SCOPES)}`
+    + `&prompt=none&login_hint=${encodeURIComponent(LOGIN_HINT)}&response_mode=fragment`;
+  iframe.onload = () => {
+    try {
+      const p = new URLSearchParams(iframe.contentWindow.location.hash.substring(1));
+      const t = p.get('access_token'), exp = p.get('expires_in');
+      if(t) { msToken=t; salvarToken(t,exp); agendarRefresh(exp); }
+    } catch(e) {}
+    document.body.removeChild(iframe);
+  };
+  document.body.appendChild(iframe);
+}
+
+function checkToken() {
+  const p = new URLSearchParams(window.location.hash.substring(1));
+  const t = p.get('access_token'), exp = p.get('expires_in');
+  if(t) {
+    msToken = t; salvarToken(t, exp); agendarRefresh(exp);
+    window.history.replaceState({}, '', ' ');
+    onConnected();
+    carregarOneDrive().catch(()=>{});
+    carregarPropsOneDrive().catch(()=>{});
+    return;
+  }
+  const saved = tokenSalvo();
+  if(saved) {
+    msToken = saved;
+    fetch('https://graph.microsoft.com/v1.0/me', {headers:{Authorization:'Bearer '+saved}})
+      .then(r => {
+        if(r.ok) {
+          const rem = Math.max(0,(parseInt(localStorage.getItem(TOKEN_EXP)||'0')-Date.now())/1000);
+          agendarRefresh(rem); onConnected();
+        } else {
+          msToken=null; localStorage.removeItem(TOKEN_KEY); localStorage.removeItem(TOKEN_EXP);
+          setDesconectado();
+        }
+      }).catch(() => { msToken=saved; onConnected(); });
+  } else {
+    setDesconectado();
+  }
+}
+
+function handleMSAuth() {
+  if(msToken) {
+    if(!confirm('Deseja desconectar a conta Microsoft?')) return;
+    localStorage.removeItem(TOKEN_KEY); localStorage.removeItem(TOKEN_EXP);
+    if(refreshTimer) clearTimeout(refreshTimer);
+    msToken = null; setDesconectado(); toastOk('Desconectado.');
+    return;
+  }
+  window.location.href =
+    `https://login.microsoftonline.com/${tenantId}/oauth2/v2.0/authorize`
+    + `?client_id=${clientId}&response_type=token`
+    + `&redirect_uri=${encodeURIComponent(REDIRECT_URI)}`
+    + `&scope=${encodeURIComponent(MS_SCOPES)}`
+    + `&response_mode=fragment`
+    + `&login_hint=${encodeURIComponent(LOGIN_HINT)}&prompt=login`;
+}
+
+function onConnected() {
+  const btn = document.getElementById('btn-ms');
+  btn.className = 'btn-ms connected';
+  btn.innerHTML = `<svg width="15" height="15" viewBox="0 0 21 21"><rect x="1" y="1" width="9" height="9" fill="#f25022"/><rect x="11" y="1" width="9" height="9" fill="#7fba00"/><rect x="1" y="11" width="9" height="9" fill="#00a4ef"/><rect x="11" y="11" width="9" height="9" fill="#ffb900"/></svg> Conectado`;
+  const st = document.getElementById('cfg-status');
+  if(st) { st.textContent='Conectado ao Microsoft 365 ✓'; st.style.color='#2E7D32'; }
+  setSinc('ok','Conectado');
+  document.getElementById('form-lock').style.display = 'none';
+}
+function setDesconectado() {
+  const btn = document.getElementById('btn-ms');
+  btn.className = 'btn-ms';
+  btn.innerHTML = `<svg width="15" height="15" viewBox="0 0 21 21"><rect x="1" y="1" width="9" height="9" fill="#f25022"/><rect x="11" y="1" width="9" height="9" fill="#7fba00"/><rect x="1" y="11" width="9" height="9" fill="#00a4ef"/><rect x="11" y="11" width="9" height="9" fill="#ffb900"/></svg> Conectar Microsoft`;
+  const st = document.getElementById('cfg-status');
+  if(st) { st.textContent='Desconectado.'; st.style.color='#C62828'; }
+  setSinc('error','Desconectado');
+  document.getElementById('form-lock').style.display = 'flex';
+}
+function setSinc(tipo, msg) {
+  const w=document.getElementById('sync-wrap'), d=document.getElementById('sync-dot'), t=document.getElementById('sync-txt');
+  if(w) w.style.display='flex'; if(d) d.className='sync-dot '+tipo; if(t) t.textContent=msg;
+}
+
+// =====================================================================
+//  FRETE — FORMULÁRIO
+// =====================================================================
+function calcPeso() {
+  const sc = parseInt(document.getElementById('f-sacas').value)||0;
+  document.getElementById('f-peso').value = sc * 60;
+}
+
+function atualizarSelectProp() {
+  const sel = document.getElementById('f-prop-sel');
+  if(!sel) return;
+  sel.innerHTML = '<option value="">— Selecione ou preencha manualmente —</option>'
+    + dadosPropriedades.map((p,i) =>
+        `<option value="${i}">${p.nome} — ${p.produtor}</option>`).join('');
+}
+
+function onPropSelect() {
+  const idx = parseInt(document.getElementById('f-prop-sel').value);
+  const box = document.getElementById('prop-preview');
+  if(isNaN(idx)) { box.style.display='none'; return; }
+  const p = dadosPropriedades[idx];
+  document.getElementById('f-produtor').value = p.produtor || '';
+  document.getElementById('f-municipio').value = p.municipio || '';
+  const temGPS = p.lat && p.lng;
+  box.style.display = 'block';
+  box.innerHTML = `<div class="gps-info-box ${temGPS?'ok':'sem'}">
+    <div>
+      <div style="font-size:12px;font-weight:600;color:${temGPS?'var(--green)':'var(--orange)'}">
+        ${temGPS ? '📍 '+p.nome : '⚠️ '+p.nome+' — sem GPS cadastrado'}
+      </div>
+      ${temGPS ? `<div class="gps-coords">${p.lat}, ${p.lng}</div>` : ''}
+    </div>
+    ${temGPS ? `<a class="btn-map" href="https://www.google.com/maps/dir/?api=1&destination=${p.lat},${p.lng}&travelmode=driving" target="_blank">🗺️ Ver Rota</a>` : ''}
+  </div>
+  ${p.obs ? `<div class="progress-hint">${p.obs}</div>` : ''}`;
+}
+
+// =====================================================================
+//  SALVAR FRETE
+// =====================================================================
+async function salvarFrete() {
+  if(!msToken) { toastErr('Conecte ao Microsoft antes de salvar.'); return; }
+  const data     = document.getElementById('f-data').value;
+  const produtor = document.getElementById('f-produtor').value.trim();
+  if(!data || !produtor) { alert('Informe a data e o produtor.'); return; }
+
+  const propIdx = parseInt(document.getElementById('f-prop-sel').value);
+  const prop    = !isNaN(propIdx) ? dadosPropriedades[propIdx] : null;
+
+  const reg = {
+    id:        Date.now(),
+    data,
+    hora:      document.getElementById('f-hora').value,
+    motorista: document.getElementById('f-motorista').value,
+    veiculo:   document.getElementById('f-veiculo').value,
+    produtor,
+    municipio: document.getElementById('f-municipio').value,
+    propNome:  prop?.nome || produtor,
+    propLat:   prop?.lat  || '',
+    propLng:   prop?.lng  || '',
+    tipo:      document.getElementById('f-tipo').value,
+    sacas:     parseInt(document.getElementById('f-sacas').value)||0,
+    peso:      parseInt(document.getElementById('f-peso').value)||0,
+    destino:   document.getElementById('f-destino').value,
+    nf:        document.getElementById('f-nf').value,
+    km:        parseInt(document.getElementById('f-km').value)||0,
+    valor:     parseFloat(document.getElementById('f-valor').value)||0,
+    obs:       document.getElementById('f-obs').value,
+    status:    'Agendado',
+    sinc:      false
+  };
+
+  dadosFretes.unshift(reg);
+  salvarLocal();
+  updateBadges();
+  toastOk('Frete salvo! Sincronizando com OneDrive...');
+  resetForm();
+  await sincFrete(reg);
+}
+
+function resetForm() {
+  ['f-veiculo','f-produtor','f-municipio','f-sacas','f-peso',
+   'f-destino','f-nf','f-km','f-valor','f-obs'].forEach(id => {
+    const el = document.getElementById(id); if(el) el.value='';
+  });
+  document.getElementById('f-prop-sel').value = '';
+  document.getElementById('prop-preview').style.display = 'none';
+  const h = new Date(), pad = n => String(n).padStart(2,'0');
+  document.getElementById('f-data').value = `${h.getFullYear()}-${pad(h.getMonth()+1)}-${pad(h.getDate())}`;
+  document.getElementById('f-hora').value = '07:00';
+}
+
+function salvarLocal() {
+  const h = new Date(), k = `frt_${h.getFullYear()}_${h.getMonth()}`;
+  try { localStorage.setItem(k, JSON.stringify(dadosFretes)); } catch(e){}
+}
+function salvarPropsLocal() {
+  try { localStorage.setItem('frt_props', JSON.stringify(dadosPropriedades)); } catch(e){}
+}
+
+// =====================================================================
+//  HISTÓRICO
+// =====================================================================
+function renderHist() {
+  const filtro  = document.getElementById('filtro-status')?.value || '';
+  const busca   = (document.getElementById('filtro-busca')?.value || '').toLowerCase();
+  let lista = [...dadosFretes].filter(f => {
+    if(filtro && f.status !== filtro) return false;
+    if(busca && !(f.propNome||f.produtor||'').toLowerCase().includes(busca)) return false;
+    return true;
+  }).sort((a,b) => (b.data+b.hora).localeCompare(a.data+a.hora));
+
+  // Resumo
+  const resumo = document.getElementById('summary-row');
+  const total  = dadosFretes.length;
+  const sacas  = dadosFretes.reduce((s,f)=>s+(f.sacas||0),0);
+  const valor  = dadosFretes.reduce((s,f)=>s+(f.valor||0),0);
+  const em_rota = dadosFretes.filter(f=>f.status==='Em Rota').length;
+  resumo.innerHTML = `
+    <div class="summary-card">
+      <div class="summary-lbl">Total de Fretes</div>
+      <div class="summary-val">${total}</div>
+      <div class="summary-sub">neste mês</div>
+    </div>
+    <div class="summary-card green">
+      <div class="summary-lbl">Sacas Transportadas</div>
+      <div class="summary-val">${sacas.toLocaleString('pt-BR')}</div>
+      <div class="summary-sub">sc 60 kg</div>
+    </div>
+    <div class="summary-card blue">
+      <div class="summary-lbl">Em Rota Agora</div>
+      <div class="summary-val">${em_rota}</div>
+      <div class="summary-sub">frete(s) ativos</div>
+    </div>
+    <div class="summary-card gold">
+      <div class="summary-lbl">Valor Total</div>
+      <div class="summary-val">R$${valor.toLocaleString('pt-BR',{minimumFractionDigits:0})}</div>
+      <div class="summary-sub">neste mês</div>
+    </div>`;
+
+  // Lista
+  const cont = document.getElementById('hist-container');
+  if(!lista.length) {
+    cont.innerHTML='<div class="empty"><div class="empty-icon">🚛</div><p>Nenhum frete encontrado.</p></div>';
+    return;
+  }
+  const pillMap = {
+    'Agendado':'pill-agendado','Em Rota':'pill-em-rota',
+    'Concluído':'pill-concluido','Cancelado':'pill-cancelado'
+  };
+  cont.innerHTML = '<div class="hist-list">' + lista.map(f => {
+    const df = f.data ? new Date(f.data+'T12:00:00').toLocaleDateString('pt-BR') : '—';
+    const temGPS = f.propLat && f.propLng;
+    const placa = f.veiculo ? `<span class="placa">${f.veiculo}</span>` : '';
+    return `<div class="hist-item" style="grid-template-columns:64px 1fr auto" onclick="verDetalhe(${f.id})">
+      <div>
+        <div class="hi-data">${df}</div>
+        <div class="hi-hora">${f.hora||''}</div>
+      </div>
+      <div>
+        <div class="hi-title">${f.propNome||f.produtor||'—'}</div>
+        <div class="hi-sub">🚛 ${f.motorista||'—'} ${placa}</div>
+        <div class="hi-sub">${f.tipo||''} ${f.sacas?'· '+f.sacas+' sc':''} ${f.destino?'→ '+f.destino:''}</div>
+      </div>
+      <div style="display:flex;flex-direction:column;align-items:flex-end;gap:5px">
+        <span class="pill ${pillMap[f.status]||'pill-agendado'}">${f.status}</span>
+        ${temGPS ? `<a href="https://www.google.com/maps/dir/?api=1&destination=${f.propLat},${f.propLng}&travelmode=driving" target="_blank" onclick="event.stopPropagation()" class="btn-map" style="font-size:11px;padding:5px 9px">🗺️ Rota</a>` : ''}
+        <span style="font-size:10px">${f.sinc?'🟢':'🟡'}</span>
+      </div>
+    </div>`;
+  }).join('') + '</div>';
+}
+
+function verDetalhe(id) {
+  const f = dadosFretes.find(x=>x.id===id); if(!f) return;
+  freteDetalheId = id;
+  const df = f.data ? new Date(f.data+'T12:00:00').toLocaleDateString('pt-BR') : '—';
+  const pillMap = {'Agendado':'pill-agendado','Em Rota':'pill-em-rota','Concluído':'pill-concluido','Cancelado':'pill-cancelado'};
+  document.getElementById('modal-frete-title').textContent = f.propNome||f.produtor||'Frete';
+
+  const temGPS = f.propLat && f.propLng;
+  const gpsHtml = temGPS
+    ? `<div class="gps-info-box ok" style="margin-bottom:1rem">
+        <div>
+          <div style="font-size:12px;font-weight:600;color:var(--green)">📍 Localização GPS disponível</div>
+          <div class="gps-coords">${f.propLat}, ${f.propLng}</div>
+        </div>
+        <a class="btn-map" href="https://www.google.com/maps/dir/?api=1&destination=${f.propLat},${f.propLng}&travelmode=driving" target="_blank">🗺️ Abrir Rota</a>
+      </div>` : '';
+
+  const rows = [
+    ['Data / Hora', df + (f.hora?' às '+f.hora:'')],
+    ['Motorista',   f.motorista||'—'],
+    ['Veículo',     f.veiculo||'—'],
+    ['Produtor',    f.produtor||'—'],
+    ['Município',   f.municipio||'—'],
+    ['Tipo de Café',f.tipo||'—'],
+    ['Sacas',       f.sacas ? f.sacas+' sc ('+f.peso+' kg)' : '—'],
+    ['Destino',     f.destino||'—'],
+    ['NF / Ticket', f.nf||'—'],
+    ['Km estimado', f.km ? f.km+' km' : '—'],
+    ['Valor',       f.valor ? 'R$ '+f.valor.toFixed(2).replace('.',',') : '—'],
+    ['Obs.',        f.obs||'—'],
+    ['Status',      f.status],
+    ['Sincronizado',f.sinc?'Sim ✓':'Pendente 🟡'],
+  ];
+
+  document.getElementById('modal-frete-body').innerHTML =
+    gpsHtml
+    + `<span class="pill ${pillMap[f.status]||'pill-agendado'}" style="margin-bottom:12px;display:inline-flex">${f.status}</span>`
+    + rows.map(([k,v])=>`<div class="modal-row"><span>${k}</span><span>${v}</span></div>`).join('');
+
+  // Botões de ação
+  let btns = `<button class="btn btn-secondary" onclick="closeModal('frete')" style="flex:1">Fechar</button>`;
+  if(f.status==='Agendado')
+    btns += `<button class="btn btn-primary" onclick="mudarStatus(${f.id},'Em Rota')" style="flex:1;background:var(--blue)">▶ Iniciar</button>`;
+  if(f.status==='Em Rota')
+    btns += `<button class="btn btn-primary" onclick="mudarStatus(${f.id},'Concluído')" style="flex:1;background:var(--green)">✓ Concluir</button>`;
+  if(f.status!=='Cancelado'&&f.status!=='Concluído')
+    btns += `<button class="btn btn-danger btn-sm" onclick="mudarStatus(${f.id},'Cancelado')">Cancelar</button>`;
+
+  document.getElementById('modal-frete-foot').innerHTML = btns;
+  document.getElementById('modal-frete').classList.add('open');
+}
+
+function mudarStatus(id, novoStatus) {
+  const f = dadosFretes.find(x=>x.id===id); if(!f) return;
+  f.status = novoStatus; f.sinc = false;
+  salvarLocal(); closeModal('frete'); renderHist();
+  toastOk('Status: ' + novoStatus);
+  if(msToken) sincFrete(f).catch(()=>{});
+}
+
+// =====================================================================
+//  PROPRIEDADES
+// =====================================================================
+function renderProps() {
+  const cont = document.getElementById('prop-container');
+  if(!dadosPropriedades.length) {
+    cont.innerHTML='<div class="empty"><div class="empty-icon">📍</div><p>Nenhuma propriedade cadastrada. Clique em "+ Nova Propriedade".</p></div>';
+    return;
+  }
+  cont.innerHTML = '<div class="prop-grid">' + dadosPropriedades.map((p,i) => {
+    const temGPS = p.lat && p.lng;
+    const tagsHtml = p.tags?.length
+      ? `<div class="prop-tags">${p.tags.map(t=>`<span class="prop-tag">${t}</span>`).join('')}</div>`
+      : '';
+    return `<div class="prop-card">
+      <div class="prop-nome">${p.nome}</div>
+      <div class="prop-produtor">👤 ${p.produtor||'—'} · 🏙️ ${p.municipio||'—'}</div>
+      ${temGPS
+        ? `<div class="prop-gps">📡 ${p.lat}, ${p.lng}</div>`
+        : `<div class="prop-sem-gps">⚠️ Sem GPS cadastrado</div>`}
+      ${tagsHtml}
+      ${p.obs ? `<div class="prop-obs">📝 ${p.obs}</div>` : ''}
+      ${p.telefone ? `<div style="font-size:11px;color:var(--text-light);margin-bottom:8px">📞 ${p.telefone}</div>` : ''}
+      <div class="prop-actions">
+        ${temGPS
+          ? `<a class="btn-map" href="https://www.google.com/maps/dir/?api=1&destination=${p.lat},${p.lng}&travelmode=driving" target="_blank">🗺️ Rota GPS</a>
+             <a class="btn-map" href="https://www.google.com/maps/search/?api=1&query=${p.lat},${p.lng}" target="_blank" style="background:#1a8917">👁 Ver Mapa</a>`
+          : ''}
+        <button class="btn btn-secondary btn-sm" onclick="editarProp(${i})">✏️</button>
+        <button class="btn btn-danger btn-sm" onclick="excluirProp(${i})">🗑</button>
+      </div>
+    </div>`;
+  }).join('') + '</div>';
+}
+
+function openPropModal(titulo='📍 Nova Propriedade') {
+  editandoPropId = null;
+  document.getElementById('modal-prop-title').textContent = titulo;
+  ['p-nome','p-produtor','p-municipio','p-telefone','p-lat','p-lng','p-obs'].forEach(id=>{
+    const el=document.getElementById(id); if(el) el.value='';
+  });
+  document.querySelectorAll('#tags-check input').forEach(cb => cb.checked=false);
+  document.getElementById('gps-preview').innerHTML = '';
+  document.getElementById('modal-prop').classList.add('open');
+}
+
+function editarProp(idx) {
+  const p = dadosPropriedades[idx];
+  editandoPropId = idx;
+  document.getElementById('modal-prop-title').textContent = '✏️ Editar Propriedade';
+  document.getElementById('p-nome').value      = p.nome||'';
+  document.getElementById('p-produtor').value  = p.produtor||'';
+  document.getElementById('p-municipio').value = p.municipio||'';
+  document.getElementById('p-telefone').value  = p.telefone||'';
+  document.getElementById('p-lat').value       = p.lat||'';
+  document.getElementById('p-lng').value       = p.lng||'';
+  document.getElementById('p-obs').value       = p.obs||'';
+  document.querySelectorAll('#tags-check input').forEach(cb => {
+    cb.checked = (p.tags||[]).includes(cb.value);
+  });
+  previewGPS();
+  document.getElementById('modal-prop').classList.add('open');
+}
+
+function excluirProp(idx) {
+  if(!confirm('Excluir esta propriedade?')) return;
+  dadosPropriedades.splice(idx,1);
+  salvarPropsLocal(); updateBadges(); renderProps();
+  toastOk('Propriedade removida.');
+}
+
+async function salvarPropriedade() {
+  const nome     = document.getElementById('p-nome').value.trim();
+  const produtor = document.getElementById('p-produtor').value.trim();
+  if(!nome||!produtor) { alert('Informe o nome da propriedade e o produtor.'); return; }
+  const tags = [...document.querySelectorAll('#tags-check input:checked')].map(cb=>cb.value);
+  const prop = {
+    id:        Date.now(),
+    nome, produtor,
+    municipio: document.getElementById('p-municipio').value,
+    telefone:  document.getElementById('p-telefone').value,
+    lat:       document.getElementById('p-lat').value.trim(),
+    lng:       document.getElementById('p-lng').value.trim(),
+    obs:       document.getElementById('p-obs').value,
+    tags,
+    sinc: false
+  };
+  if(editandoPropId !== null) {
+    dadosPropriedades[editandoPropId] = prop;
+  } else {
+    dadosPropriedades.push(prop);
+  }
+  salvarPropsLocal(); updateBadges(); renderProps();
+  closeModal('prop');
+  toastOk('Propriedade salva! Sincronizando...');
+  if(msToken) await sincPropriedade(prop);
+}
+
+// GPS
+function usarGPSAtual() {
+  if(!navigator.geolocation) { toastErr('Geolocalização não disponível.'); return; }
+  toastOk('Obtendo localização...');
+  navigator.geolocation.getCurrentPosition(pos => {
+    document.getElementById('p-lat').value = pos.coords.latitude.toFixed(6);
+    document.getElementById('p-lng').value = pos.coords.longitude.toFixed(6);
+    previewGPS(); toastOk('Localização obtida!');
+  }, () => toastErr('Não foi possível obter a localização.'));
+}
+function previewGPS() {
+  const lat = document.getElementById('p-lat').value.trim();
+  const lng = document.getElementById('p-lng').value.trim();
+  const box = document.getElementById('gps-preview');
+  if(lat && lng && !isNaN(lat) && !isNaN(lng)) {
+    box.innerHTML = `<div class="gps-info-box ok" style="margin-top:0">
+      <div>
+        <div style="font-size:11px;font-weight:600;color:var(--green)">✅ Coordenadas válidas</div>
+        <div class="gps-coords">${lat}, ${lng}</div>
+      </div>
+      <a class="btn-map" style="font-size:11px;padding:5px 9px"
+         href="https://www.google.com/maps/search/?api=1&query=${lat},${lng}" target="_blank">👁 Visualizar</a>
+    </div>`;
+  } else { box.innerHTML=''; }
+}
+
+// =====================================================================
+//  MODAIS
+// =====================================================================
+function closeModal(id) {
+  document.getElementById('modal-'+id).classList.remove('open');
+}
+
+// =====================================================================
+//  CONFIG
+// =====================================================================
+function salvarCfg() {
+  clientId = document.getElementById('cfg-client').value.trim();
+  tenantId = document.getElementById('cfg-tenant').value.trim();
+  localStorage.setItem('frt_client_id', clientId);
+  localStorage.setItem('frt_tenant_id', tenantId);
+  toastOk('Configuração salva!');
+}
+function salvarPath() {
+  odPath = document.getElementById('cfg-path').value.trim() || 'Fretes';
+  localStorage.setItem('frt_od_path', odPath);
+  toastOk('Pasta salva!');
+}
+
+// =====================================================================
+//  ONEDRIVE — FRETES
+// =====================================================================
+async function carregarOneDrive() {
+  if(!msToken) return;
+  setSinc('pending','Carregando...');
+  document.getElementById('hist-loading').style.display = 'block';
+  try {
+    const h=new Date(), ano=h.getFullYear(), mes=MESES[h.getMonth()];
+    const raiz = odPath.normalize('NFD').replace(/[\u0300-\u036f]/g,'');
+    const arq  = `${raiz}/Fretes_${ano}.xlsx`;
+    const enc  = arq.split('/').map(p=>encodeURIComponent(p)).join('/');
+    const ck   = await fetch(`https://graph.microsoft.com/v1.0/me/drive/root:/${enc}`,
+                             {headers:{Authorization:'Bearer '+msToken}});
+    if(!ck.ok) { setSinc('ok','Conectado'); return; }
+    const fid  = (await ck.json()).id;
+    const meta = await (await fetch(`https://graph.microsoft.com/v1.0/me/drive/items/${fid}?select=name,size,file`,
+                                    {headers:{Authorization:'Bearer '+msToken}})).json();
+    if(!meta.file || meta.size<1000) { setSinc('ok','Conectado'); return; }
+    const abas = (await (await fetch(`https://graph.microsoft.com/v1.0/me/drive/items/${fid}/workbook/worksheets`,
+                                     {headers:{Authorization:'Bearer '+msToken}})).json()).value.map(s=>s.name);
+    if(!abas.includes(mes)) { setSinc('ok','Conectado'); return; }
+    const rr   = await fetch(`https://graph.microsoft.com/v1.0/me/drive/items/${fid}/workbook/worksheets/${encodeURIComponent(mes)}/usedRange`,
+                             {headers:{Authorization:'Bearer '+msToken}});
+    if(!rr.ok) { setSinc('ok','Conectado'); return; }
+    const rows = (await rr.json()).values || [];
+    if(rows.length<=1) { setSinc('ok','Conectado'); return; }
+    const novos = [];
+    for(let i=1; i<rows.length; i++) {
+      const r=rows[i]; if(!r[0]) continue;
+      const pt=r[0]?String(r[0]).split('/'):[];
+      const di=pt.length===3?`${pt[2]}-${pt[1].padStart(2,'0')}-${pt[0].padStart(2,'0')}`:'';
+      novos.push({id:Date.now()+i*11,data:di,hora:r[1]||'',motorista:r[2]||'',veiculo:r[3]||'',
+        produtor:r[4]||'',municipio:r[5]||'',propNome:r[6]||'',propLat:r[7]||'',propLng:r[8]||'',
+        tipo:r[9]||'',sacas:parseInt(r[10])||0,peso:parseInt(r[11])||0,destino:r[12]||'',
+        nf:r[13]||'',km:parseInt(r[14])||0,valor:parseFloat(r[15])||0,obs:r[16]||'',
+        status:r[17]||'Concluído',sinc:true,fromCloud:true});
+    }
+    if(novos.length>0) {
+      const chave=d=>`${d.data}|${d.produtor}|${d.hora}`;
+      const cc=new Set(novos.map(chave));
+      dadosFretes=[...dadosFretes.filter(d=>!d.sinc&&!cc.has(chave(d))),...novos];
+      salvarLocal(); updateBadges();
+    }
+    setSinc('ok','Sincronizado');
+    toastOk(novos.length+' fretes carregados do OneDrive.');
+  } catch(e) {
+    setSinc('ok','Conectado');
+    toastErr('Erro ao carregar: '+(e.message||''));
+  } finally {
+    document.getElementById('hist-loading').style.display = 'none';
+    renderHist();
+  }
+}
+
+async function sincFrete(reg) {
+  setSinc('pending','Sincronizando...');
+  try {
+    const tr = await fetch('https://graph.microsoft.com/v1.0/me',{headers:{Authorization:'Bearer '+msToken}});
+    if(!tr.ok) {
+      localStorage.removeItem(TOKEN_KEY); localStorage.removeItem(TOKEN_EXP);
+      msToken=null; setDesconectado();
+      throw new Error('Sessão expirada. Reconecte.');
+    }
+    await appendFrtExcel(reg);
+    reg.sinc=true; salvarLocal();
+    setSinc('ok','Sincronizado'); toastOk('Frete sincronizado com OneDrive ✓');
+  } catch(e) {
+    setSinc('error','Erro');
+    toastErr('Erro na sincronização: '+(e.message||''));
+  }
+}
+
+async function appendFrtExcel(reg) {
+  const d=new Date(reg.data+'T12:00:00'), ano=d.getFullYear(), mes=MESES[d.getMonth()];
+  const raiz=odPath.normalize('NFD').replace(/[\u0300-\u036f]/g,'');
+  const fid=await getOrCreateExcel(`${raiz}/Fretes_${ano}.xlsx`);
+  await garantirAba(fid, mes, 'frt');
+  const df=d.toLocaleDateString('pt-BR');
+  const linha=[df,reg.hora||'',reg.motorista||'',reg.veiculo||'',reg.produtor||'',reg.municipio||'',
+               reg.propNome||'',reg.propLat||'',reg.propLng||'',reg.tipo||'',reg.sacas||0,reg.peso||0,
+               reg.destino||'',reg.nf||'',reg.km||0,reg.valor||0,reg.obs||'',reg.status||''];
+  const hdrs={'Authorization':'Bearer '+msToken,'Content-Type':'application/json'};
+  await delay(1000);
+  const ur=await fetch(`https://graph.microsoft.com/v1.0/me/drive/items/${fid}/workbook/worksheets/${encodeURIComponent(mes)}/usedRange`,{headers:hdrs});
+  if(!ur.ok) { const e=await ur.json().catch(()=>({})); throw new Error('usedRange: '+ur.status+' '+(e.error?.message||'')); }
+  const next=(await ur.json()).rowCount+1;
+  const wr=await fetch(`https://graph.microsoft.com/v1.0/me/drive/items/${fid}/workbook/worksheets/${encodeURIComponent(mes)}/range(address='A${next}:R${next}')`,
+    {method:'PATCH',headers:hdrs,body:JSON.stringify({values:[linha]})});
+  if(!wr.ok) { const e=await wr.json().catch(()=>({})); throw new Error('write: '+wr.status+' '+(e.error?.message||'')); }
+}
+
+// =====================================================================
+//  ONEDRIVE — PROPRIEDADES
+// =====================================================================
+async function carregarPropsOneDrive() {
+  if(!msToken) return;
+  try {
+    const raiz=odPath.normalize('NFD').replace(/[\u0300-\u036f]/g,'');
+    const arq=`${raiz}/Clientes_Propriedades.xlsx`;
+    const enc=arq.split('/').map(p=>encodeURIComponent(p)).join('/');
+    const ck=await fetch(`https://graph.microsoft.com/v1.0/me/drive/root:/${enc}`,{headers:{Authorization:'Bearer '+msToken}});
+    if(!ck.ok) return;
+    const fid=(await ck.json()).id;
+    const meta=await(await fetch(`https://graph.microsoft.com/v1.0/me/drive/items/${fid}?select=name,size,file`,{headers:{Authorization:'Bearer '+msToken}})).json();
+    if(!meta.file||meta.size<1000) return;
+    const abas=(await(await fetch(`https://graph.microsoft.com/v1.0/me/drive/items/${fid}/workbook/worksheets`,{headers:{Authorization:'Bearer '+msToken}})).json()).value.map(s=>s.name);
+    if(!abas.length) return;
+    const aba=abas[0];
+    const rr=await fetch(`https://graph.microsoft.com/v1.0/me/drive/items/${fid}/workbook/worksheets/${encodeURIComponent(aba)}/usedRange`,{headers:{Authorization:'Bearer '+msToken}});
+    if(!rr.ok) return;
+    const rows=(await rr.json()).values||[];
+    if(rows.length<=1) return;
+    const props=[];
+    for(let i=1;i<rows.length;i++){
+      const r=rows[i]; if(!r[0]) continue;
+      props.push({id:Date.now()+i*13,nome:r[0]||'',produtor:r[1]||'',municipio:r[2]||'',
+        telefone:r[3]||'',lat:r[4]||'',lng:r[5]||'',obs:r[6]||'',
+        tags:r[7]?r[7].split(',').map(s=>s.trim()).filter(Boolean):[],sinc:true});
+    }
+    if(props.length>0){
+      const cc=new Set(props.map(p=>p.nome+'|'+p.produtor));
+      dadosPropriedades=[...dadosPropriedades.filter(p=>!p.sinc&&!cc.has(p.nome+'|'+p.produtor)),...props];
+      salvarPropsLocal(); updateBadges(); renderProps();
+      toastOk(props.length+' propriedades carregadas.');
+    }
+  } catch(e) { console.warn('Erro carregar props:',e); }
+}
+
+async function sincPropriedade(prop) {
+  if(!msToken) return;
+  try {
+    const raiz=odPath.normalize('NFD').replace(/[\u0300-\u036f]/g,'');
+    const fid=await getOrCreateExcel(`${raiz}/Clientes_Propriedades.xlsx`);
+    await garantirAba(fid,'Clientes','prop');
+    const linha=[prop.nome||'',prop.produtor||'',prop.municipio||'',prop.telefone||'',
+                 prop.lat||'',prop.lng||'',prop.obs||'',( prop.tags||[]).join(', ')];
+    const hdrs={'Authorization':'Bearer '+msToken,'Content-Type':'application/json'};
+    await delay(1000);
+    const ur=await fetch(`https://graph.microsoft.com/v1.0/me/drive/items/${fid}/workbook/worksheets/Clientes/usedRange`,{headers:hdrs});
+    const next=ur.ok?(await ur.json()).rowCount+1:2;
+    await fetch(`https://graph.microsoft.com/v1.0/me/drive/items/${fid}/workbook/worksheets/Clientes/range(address='A${next}:H${next}')`,
+      {method:'PATCH',headers:hdrs,body:JSON.stringify({values:[linha]})});
+    prop.sinc=true; salvarPropsLocal(); toastOk('Propriedade sincronizada com OneDrive ✓');
+  } catch(e) { toastErr('Erro ao sincronizar propriedade: '+(e.message||'')); }
+}
+
+// =====================================================================
+//  EXCEL HELPER
+// =====================================================================
+const XLSX_MIN='UEsDBBQAAAAIALONdFy5mqGQAQEAADsCAAATAAAAW0NvbnRlbnRfVHlwZXNdLnhtbK1RyU7DMBC99yssX6vYKQeEUJIeWI7AoXzA4EwSK97kcUv69zgpi4Qo4sBpNHqrZqrtZA07YCTtXc03ouQMnfKtdn3Nn3f3xRVnlMC1YLzDmh+R+LZZVbtjQGJZ7KjmQ0rhWkpSA1og4QO6jHQ+Wkh5jb0MoEboUV6U5aVU3iV0qUizB29WjFW32MHeJHY3ZeTUJaIhzm5O3Dmu5hCC0QpSxuXBtd+CivcQkZULhwYdaJ0JXJ4LmcHzGV/Sx3yiqFtkTxDTA9hMlJORrz6OL96P4nefH7r6rtMKW6/2NksEhYjQ0oCYrBHLFBa0W/+pwsInuYzNP3f59P+oUsnl980bUEsDBBQAAAAIALONdFxdh/QutAAAACwBAAALAAAAX3JlbHMvLnJlbHONz78OgjAQBvCdp2hul4KDMYbCYkxYDT5ALcefUHpNWxXe3o5iHBwvd9/v8hXVMmv2ROdHMgLyNAOGRlE7ml7ArbnsjsB8kKaVmgwKWNFDVSbFFbUMMeOH0XoWEeMFDCHYE+deDThLn5JFEzcduVmGOLqeW6km2SPfZ9mBu08DyoSxDcvqVoCr2xxYs1r8h6euGxWeST1mNOHHl6+LKEvXYxCwaP4iN92JpjSiwGNHvilZvgFQSwMEFAAAAAgAs410XFkhbT3DAAAAKgEAAA8AAAB4bC93b3JrYm9vay54bWyNj71uwzAMhPc8hcA9kd2hKAzbWYICmds+gGrRsRCLNEilP29fOoH3TjyCuI937fEnz+4LRRNTB/WhAoc0cEx06eDj/XU/Ak5LoBhmJuzgFxWO/a79Zrl+Ml+d+Uk7mEpZGu91mDAHPfCCZJeRJYdiq1y8LoIh6oRY8uyfqurZ55AIdu7BaOQ/FB7HNOCJh1tGKg+M4ByK5dcpLQq9Adv7G13ltjgK2fK/rbq2Tus8R6sMTppkQs6xBn93+83e+q1n/wdQSwMEFAAAAAgAs410XPVgA4K3AAAALQEAABoAAAB4bC9fcmVscy93b3JrYm9vay54bWwucmVsc43PzQrCMAwH8PueouTusnkQkXW7iLCrzAcoXfaBW1ua+rG3t3gQBx48hSTkF/5F9ZwncSfPozUS8jQDQUbbdjS9hEtz2uxBcFCmVZM1JGEhhqpMijNNKsQbHkbHIiKGJQwhuAMi64Fmxal1ZOKms35WIba+R6f0VfWE2yzbof82oEyEWLGibiX4us1BNIujf3jbdaOmo9W3mUz48QUf1l95IAoRVb6nIOEzYnyXPI0qYAyJq5TlC1BLAwQUAAAACACzjXRch5PdQocAAAChAAAAGAAAAHhsL3dvcmtzaGVldHMvc2hlZXQxLnhtbD3MSw7CMAwE0H1PEXlPXVgghJJ2gzgBHMBqTFvROFEc8bk9URcsZ0bz7PAJq3lx1iWKg33bgWEZo19kcnC/XXcnMFpIPK1R2MGXFYa+se+YnzozF1MBUQdzKemMqOPMgbSNiaUuj5gDlRrzhJoyk99OYcVD1x0x0CLQN8bYrb5QIaw4/vX+B1BLAQIUAxQAAAAIALONdFy5mqGQAQEAADsCAAATAAAAAAAAAAAAAACAAQAAAABbQ29udGVudF9UeXBlc10ueG1sUEsBAhQDFAAAAAgAs410XF2H9C60AAAALAEAAAsAAAAAAAAAAAAAAIABMgEAAF9yZWxzLy5yZWxzUEsBAhQDFAAAAAgAs410XFkhbT3DAAAAKgEAAA8AAAAAAAAAAAAAAIABDwIAAHhsL3dvcmtib29rLnhtbFBLAQIUAxQAAAAIALONdFz1YAOCtwAAAC0BAAAaAAAAAAAAAAAAAACAAf8CAAB4bC9fcmVscy93b3JrYm9vay54bWwucmVsc1BLAQIUAxQAAAAIALONdFyHk91ChwAAAKEAAAAYAAAAAAAAAAAAAACAAe4DAAB4bC93b3Jrc2hlZXRzL3NoZWV0MS54bWxQSwUGAAAAAAUABQBFAQAAqwQAAAAA';
+
+async function getOrCreateExcel(path) {
+  const enc=path.split('/').map(p=>encodeURIComponent(p)).join('/');
+  const ck=await fetch(`https://graph.microsoft.com/v1.0/me/drive/root:/${enc}`,{headers:{Authorization:'Bearer '+msToken}});
+  if(ck.ok) return (await ck.json()).id;
+  function b64ab(b){const r=atob(b),u=new Uint8Array(r.length);for(let i=0;i<r.length;i++)u[i]=r.charCodeAt(i);return u.buffer;}
+  const cr=await fetch(`https://graph.microsoft.com/v1.0/me/drive/root:/${enc}:/content`,
+    {method:'PUT',headers:{Authorization:'Bearer '+msToken,'Content-Type':'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'},body:b64ab(XLSX_MIN)});
+  if(!cr.ok){const e=await cr.json().catch(()=>({}));throw new Error('Criar Excel: '+(e.error?.message||cr.status));}
+  const d=await cr.json(); await delay(4000); return d.id;
+}
+
+async function garantirAba(fileId, mes, tipo) {
+  await delay(2000);
+  const hdrs={'Authorization':'Bearer '+msToken,'Content-Type':'application/json'};
+  const r=await fetch(`https://graph.microsoft.com/v1.0/me/drive/items/${fileId}/workbook/worksheets`,{headers:hdrs});
+  if(!r.ok){const e=await r.json().catch(()=>({}));throw new Error('Listar abas: '+r.status);}
+  const abas=(await r.json()).value.map(s=>s.name);
+  if(!abas.includes(mes)){
+    const cr=await fetch(`https://graph.microsoft.com/v1.0/me/drive/items/${fileId}/workbook/worksheets`,
+      {method:'POST',headers:hdrs,body:JSON.stringify({name:mes})});
+    if(!cr.ok){const e=await cr.json().catch(()=>({}));throw new Error('Criar aba: '+cr.status);}
+    await delay(3000);
+  }
+  const cabMap = {
+    frt:  [['Data','Hora','Motorista','Veiculo','Produtor','Municipio','Propriedade','Latitude','Longitude','TipoCafe','Sacas','Peso_kg','Destino','NF_Ticket','Km','Valor_R$','Observacoes','Status']],
+    prop: [['Propriedade','Produtor','Municipio','Telefone','Latitude','Longitude','Observacoes','Tags']]
+  };
+  const cab=cabMap[tipo]; if(!cab) return;
+  await delay(1000);
+  const ck=await fetch(`https://graph.microsoft.com/v1.0/me/drive/items/${fileId}/workbook/worksheets/${encodeURIComponent(mes)}/range(address='A1')`,{headers:hdrs});
+  const hd=await ck.json().catch(()=>({values:[['']]}));
+  if(!hd.values?.[0]?.[0]){
+    const cols=cab[0].length, lc=String.fromCharCode(64+cols);
+    await fetch(`https://graph.microsoft.com/v1.0/me/drive/items/${fileId}/workbook/worksheets/${encodeURIComponent(mes)}/range(address='A1:${lc}1')`,
+      {method:'PATCH',headers:hdrs,body:JSON.stringify({values:cab})});
+    await delay(1500);
+  }
+}
+
+// =====================================================================
+//  UTILS
+// =====================================================================
+const delay = ms => new Promise(r => setTimeout(r, ms));
+function toastOk(m){const t=document.getElementById('toast-ok');t.textContent=m;t.classList.add('show');setTimeout(()=>t.classList.remove('show'),3500);}
+function toastErr(m){const t=document.getElementById('toast-err');t.textContent=m;t.classList.add('show');setTimeout(()=>t.classList.remove('show'),5000);}
+</script>
+</body>
+</html>
