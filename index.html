@@ -337,11 +337,30 @@ body{font-family:'DM Sans',sans-serif;background:var(--cream);min-height:100vh;c
         <input type="number" id="f-aproveit" placeholder="Ex: 70" min="1" max="100" step="1" oninput="calcCarga()">
       </div>
     </div>
+      <!-- PESO TOTAL — sempre visível -->
+      <div class="form-group" id="g-carga-kg">
+        <label>Carga Total (kg)</label>
+        <input type="number" id="f-carga-kg" placeholder="0" step="1" min="0" oninput="calcCarga()">
+      </div>
+    </div>
     <div id="calc-result" style="display:none"></div>
     <div id="cap-aviso" style="display:none"></div>
-    <div class="form-group" style="margin-top:.875rem">
-      <label>Destino Final</label>
-      <input type="text" id="f-destino" placeholder="Ex: Armazém Vilela — Capitólio" oninput="calcDistancia()">
+
+    <div style="margin-top:.875rem">
+      <div class="form-group" style="margin-bottom:6px">
+        <label>Destino Final — Propriedade cadastrada</label>
+        <select id="f-destino-prop" onchange="onDestinoSelect()">
+          <option value="">— Selecione uma propriedade cadastrada (opcional) —</option>
+        </select>
+      </div>
+      <div style="display:flex;gap:8px;align-items:center">
+        <div class="form-group" style="flex:1;margin:0">
+          <label>Destino Final — Endereço / Armazém</label>
+          <input type="text" id="f-destino" placeholder="Ex: Armazém Vilela — Capitólio" oninput="calcDistancia()">
+        </div>
+        <button type="button" onclick="abrirRotaDestino()" class="btn-map" style="margin-top:17px;padding:10px 13px;flex-shrink:0" title="Abrir rota no Google Maps">🗺️</button>
+      </div>
+      <div id="destino-preview" style="display:none;margin-top:6px"></div>
     </div>
   </div>
 
@@ -514,12 +533,18 @@ body{font-family:'DM Sans',sans-serif;background:var(--cream);min-height:100vh;c
   <div class="modal">
     <div class="modal-head"><h2 id="mp-title">📍 Propriedade Rural</h2><button class="modal-close" onclick="closeModal('prop')">✕</button></div>
     <div class="modal-body">
-      <div class="section-title">Dados do Produtor</div>
+      <div class="section-title">Identificação</div>
       <div class="form-grid" style="margin-bottom:.875rem">
         <div class="form-group"><label>Nome da Propriedade / Fazenda</label><input type="text" id="p-nome" placeholder="Ex: Fazenda Boa Vista"></div>
-        <div class="form-group"><label>Nome do Produtor</label><input type="text" id="p-produtor" placeholder="Nome completo"></div>
+        <div class="form-group"><label>Apelido / Nome curto</label><input type="text" id="p-apelido" placeholder="Ex: Boa Vista, Antinha..."></div>
+        <div class="form-group"><label>Comunidade / Bairro Rural</label><input type="text" id="p-comunidade" placeholder="Ex: Comunidade Lagoinha"></div>
         <div class="form-group"><label>Município / UF</label><input type="text" id="p-municipio" placeholder="Ex: Capitólio — MG"></div>
-        <div class="form-group"><label>Telefone</label><input type="tel" id="p-telefone" placeholder="(35) 99999-9999"></div>
+      </div>
+      <div class="section-title">Produtor e Contato</div>
+      <div class="form-grid" style="margin-bottom:.875rem">
+        <div class="form-group"><label>Nome do Produtor</label><input type="text" id="p-produtor" placeholder="Nome completo"></div>
+        <div class="form-group"><label>Telefone / WhatsApp</label><input type="tel" id="p-telefone" placeholder="(35) 99999-9999"></div>
+        <div class="form-group"><label>Nome do Contato (se diferente)</label><input type="text" id="p-contato" placeholder="Quem atende o telefone"></div>
       </div>
       <div class="section-title">Localização GPS</div>
       <div style="background:var(--cream);border-radius:10px;padding:1rem;margin-bottom:.875rem;border:0.5px solid var(--border)">
@@ -531,14 +556,7 @@ body{font-family:'DM Sans',sans-serif;background:var(--cream);min-height:100vh;c
         <button class="btn btn-secondary btn-sm" onclick="usarGPSAtual()" style="margin-bottom:8px">🎯 Usar minha localização atual</button>
         <div id="gps-preview"></div>
       </div>
-      <div class="form-group" style="margin-bottom:.875rem"><label>Observações / Referências de Acesso</label><textarea id="p-obs" placeholder="Portão azul, 2km após a ponte..." style="min-height:56px"></textarea></div>
-      <div style="display:flex;flex-wrap:wrap;gap:6px" id="tags-check">
-        <label class="tag-lbl"><input type="checkbox" value="Arábica"> Arábica</label>
-        <label class="tag-lbl"><input type="checkbox" value="Conilon"> Conilon</label>
-        <label class="tag-lbl"><input type="checkbox" value="Orgânico"> Orgânico</label>
-        <label class="tag-lbl"><input type="checkbox" value="Acesso Difícil"> Acesso Difícil</label>
-        <label class="tag-lbl"><input type="checkbox" value="Est. Vicinal"> Est. Vicinal</label>
-      </div>
+      <div class="form-group"><label>Observações / Referências de Acesso</label><textarea id="p-obs" placeholder="Portão azul, 2km após a ponte..." style="min-height:56px"></textarea></div>
     </div>
     <div class="modal-foot">
       <button class="btn btn-secondary" onclick="closeModal('prop')">Cancelar</button>
@@ -559,6 +577,7 @@ body{font-family:'DM Sans',sans-serif;background:var(--cream);min-height:100vh;c
           <select id="v-tipo">
             <option value="Truck">Truck</option><option value="Bitruck">Bitruck</option>
             <option value="Carreta">Carreta</option><option value="Toco">Toco</option>
+            <option value="Caminhonete">Caminhonete</option>
             <option value="Utilitário">Utilitário</option><option value="Pickup">Pickup</option>
           </select>
         </div>
@@ -705,9 +724,16 @@ function updateSelects() {
   sv.innerHTML = '<option value="">— Selecione —</option>' + dadosVeiculos.filter(v=>v.status==='Disponível'||v.status==='Em uso').map((v,i)=>`<option value="${i}">${v.placa} — ${v.nome} (${v.capSacas} sc)</option>`).join('');
   if(prevV) sv.value = prevV;
 
-  // Select propriedade no frete
+  // Select propriedade de origem no frete
   const sp = document.getElementById('f-prop-sel');
-  sp.innerHTML = '<option value="">— Selecione ou preencha manualmente —</option>' + dadosPropriedades.map((p,i)=>`<option value="${i}">${p.nome} — ${p.produtor}</option>`).join('');
+  sp.innerHTML = '<option value="">— Selecione ou preencha manualmente —</option>' + dadosPropriedades.map((p,i)=>`<option value="${i}">${p.apelido||p.nome} — ${p.produtor}</option>`).join('');
+
+  // Select propriedade como DESTINO no frete
+  const sd = document.getElementById('f-destino-prop');
+  if(sd) {
+    sd.innerHTML = '<option value="">— Selecione uma propriedade cadastrada (opcional) —</option>'
+      + dadosPropriedades.map((p,i)=>`<option value="${i}">${p.apelido||p.nome} — ${p.municipio||p.produtor}</option>`).join('');
+  }
 
   // Select motorista padrão no modal veículo
   const svmp = document.getElementById('v-motorista-pad');
@@ -753,19 +779,26 @@ function calcCarga() {
   const box  = document.getElementById('calc-result');
   let html = '', pesoTotalKg = 0, sacasEquiv = 0, volumeObs = '';
 
+  // Lê o campo de carga total kg (entrada manual)
+  const cargaKgManual = parseFloat(document.getElementById('f-carga-kg').value)||0;
+
   if(tipo === 'beneficiado') {
     const sacas = parseFloat(document.getElementById('f-sacas').value)||0;
-    pesoTotalKg = sacas * 60;
-    sacasEquiv  = sacas;
+    pesoTotalKg = sacas > 0 ? sacas * 60 : cargaKgManual;
+    sacasEquiv  = pesoTotalKg / 60;
+    // Preenche kg automaticamente se veio de sacas
+    if(sacas > 0 && !cargaKgManual) document.getElementById('f-carga-kg').value = pesoTotalKg;
     if(sacas > 0) html = `
       <div class="calc-item"><span class="calc-lbl">Sacas</span><span class="calc-val">${sacas.toLocaleString('pt-BR')}</span><span class="calc-unit">sc 60 kg</span></div>
       <div class="calc-item"><span class="calc-lbl">Peso Total</span><span class="calc-val">${pesoTotalKg.toLocaleString('pt-BR')}</span><span class="calc-unit">kg</span></div>`;
+    else if(cargaKgManual > 0) { sacasEquiv = cargaKgManual/60; html=`<div class="calc-item"><span class="calc-lbl">Sacas est.</span><span class="calc-val">${sacasEquiv.toFixed(1)}</span><span class="calc-unit">sc</span></div>`; }
   }
   else if(tipo === 'escolha') {
     const sacas   = parseFloat(document.getElementById('f-sacas').value)||0;
     const aproveit= parseFloat(document.getElementById('f-aproveit').value)||0;
-    pesoTotalKg   = sacas * 60;
-    sacasEquiv    = sacas;
+    pesoTotalKg   = sacas > 0 ? sacas * 60 : cargaKgManual;
+    sacasEquiv    = pesoTotalKg / 60;
+    if(sacas > 0 && !cargaKgManual) document.getElementById('f-carga-kg').value = pesoTotalKg;
     const volExtra = aproveit>0 ? (100/aproveit).toFixed(2) : '—';
     if(sacas > 0) {
       html = `
@@ -779,9 +812,8 @@ function calcCarga() {
   else if(tipo === 'cereja') {
     const tambores = parseFloat(document.getElementById('f-tambores').value)||0;
     const litros   = tambores * 20;
-    // ~550L por saca beneficiada
     sacasEquiv     = litros / 550;
-    pesoTotalKg    = sacasEquiv * 60;
+    pesoTotalKg    = cargaKgManual > 0 ? cargaKgManual : sacasEquiv * 60;
     if(tambores > 0) html = `
       <div class="calc-item"><span class="calc-lbl">Tambores (20L)</span><span class="calc-val">${tambores.toLocaleString('pt-BR')}</span><span class="calc-unit">tambores</span></div>
       <div class="calc-item"><span class="calc-lbl">Volume Total</span><span class="calc-val">${litros.toLocaleString('pt-BR')}</span><span class="calc-unit">litros</span></div>
@@ -791,11 +823,12 @@ function calcCarga() {
   else if(tipo === 'coco') {
     const arrobas = parseFloat(document.getElementById('f-arrobas').value)||0;
     const renda   = parseFloat(document.getElementById('f-renda').value)||0;
-    const kgTotal = arrobas * 30;
+    const kgTotal = arrobas > 0 ? arrobas * 30 : cargaKgManual;
     const sacasBenef = renda > 0 ? (kgTotal * renda / 100) / 60 : 0;
     pesoTotalKg    = kgTotal;
     sacasEquiv     = sacasBenef;
-    if(arrobas > 0) {
+    if(arrobas > 0 && !cargaKgManual) document.getElementById('f-carga-kg').value = kgTotal;
+    if(arrobas > 0 || kgTotal > 0) {
       html = `
         <div class="calc-item"><span class="calc-lbl">Arrobas (30 kg)</span><span class="calc-val">${arrobas.toLocaleString('pt-BR')}</span><span class="calc-unit">@</span></div>
         <div class="calc-item"><span class="calc-lbl">Peso Total</span><span class="calc-val">${kgTotal.toLocaleString('pt-BR')}</span><span class="calc-unit">kg</span></div>`;
@@ -807,7 +840,6 @@ function calcCarga() {
   box.style.display = html ? 'block' : 'none';
   if(html) box.innerHTML = `<div class="calc-box"><div class="calc-box-title">Estimativa de Carga</div><div class="calc-items">${html}</div>${volumeObs?'<div style="margin-top:.75rem;font-size:12px;color:var(--orange)">'+volumeObs+'</div>':''}</div>`;
 
-  // Aviso de capacidade
   verificarCapacidade(sacasEquiv, pesoTotalKg);
 }
 
@@ -882,35 +914,103 @@ function onPropSelect() {
   document.getElementById('f-produtor').value = p.produtor||'';
   document.getElementById('f-municipio').value = p.municipio||'';
   const temGPS = p.lat&&p.lng;
+  const nomeExib = p.apelido || p.nome;
   box.style.display='block';
   box.innerHTML = `<div class="gps-box ${temGPS?'ok':'sem'}">
     <div>
       <div style="font-size:12px;font-weight:600;color:${temGPS?'var(--green)':'var(--orange)'}">
-        ${temGPS?'📍 '+p.nome:'⚠️ '+p.nome+' — sem GPS cadastrado'}
+        ${temGPS?'📍 '+nomeExib:'⚠️ '+nomeExib+' — sem GPS cadastrado'}
       </div>
+      ${p.comunidade?`<div style="font-size:11px;color:var(--text-mid)">🏘️ ${p.comunidade}</div>`:''}
       ${temGPS?`<div class="gps-coords">${p.lat}, ${p.lng}</div>`:''}
     </div>
     ${temGPS?`<a class="btn-map" href="https://www.google.com/maps/dir/?api=1&destination=${p.lat},${p.lng}&travelmode=driving" target="_blank">🗺️ Ver Rota</a>`:''}
   </div>
   ${p.obs?`<div class="hint-box" style="margin-top:6px">${p.obs}</div>`:''}`;
 
-  // Verificar frete duplo na mesma propriedade
-  const fretesAbertos = dadosFretes.filter(f =>
-    f.propNome === p.nome &&
-    (f.status==='Agendado'||f.status==='Em Rota')
-  );
-  if(fretesAbertos.length>0) {
-    const lista = fretesAbertos.map(f => {
-      const df = f.data ? new Date(f.data+'T12:00:00').toLocaleDateString('pt-BR') : '—';
-      return `${df} ${f.hora||''} — ${f.motorista||'?'} — ${f.tipo||''} — ${f.sacas?f.sacas+' sc':f.arrobas?f.arrobas+' @':f.tambores?f.tambores+' tb':'?'}`;
-    }).join('<br>');
-    alerta.style.display='block';
-    alerta.innerHTML=`<div class="aviso-box" style="background:#E3F2FD;border-color:#90CAF9;color:#0D47A1"><span class="icon">🔔</span><div><strong>Atenção: já existe frete em aberto nesta propriedade!</strong><br><span style="font-size:12px">${lista}</span><br><span style="font-size:12px;margin-top:4px;display:block">Considere consolidar as duas demandas num único frete.</span></div></div>`;
+  // Alerta por COMUNIDADE — verifica fretes em aberto de propriedades da mesma comunidade
+  const comunidadeAtual = p.comunidade || '';
+  let fretesConflito = [];
+  if(comunidadeAtual) {
+    // Propriedades da mesma comunidade
+    const propsMesmaComunidade = dadosPropriedades
+      .filter(pp => pp.comunidade && pp.comunidade.trim().toLowerCase() === comunidadeAtual.trim().toLowerCase());
+    const nomesConflito = new Set(propsMesmaComunidade.map(pp => pp.nome));
+    fretesConflito = dadosFretes.filter(f =>
+      nomesConflito.has(f.propNome) &&
+      (f.status==='Agendado' || f.status==='Em Rota')
+    );
+  } else {
+    // Sem comunidade: verifica apenas a mesma propriedade
+    fretesConflito = dadosFretes.filter(f =>
+      f.propNome === p.nome &&
+      (f.status==='Agendado' || f.status==='Em Rota')
+    );
   }
 
-  // Calcular distância ao escolher propriedade
+  if(fretesConflito.length > 0) {
+    const lista = fretesConflito.map(f => {
+      const df = f.data ? new Date(f.data+'T12:00:00').toLocaleDateString('pt-BR') : '—';
+      return `${df} ${f.hora||''} — ${f.motorista||'?'} — ${f.propNome||f.produtor} — ${f.tipoLabel||f.tipo||''}`;
+    }).join('<br>');
+    const msg = comunidadeAtual
+      ? `Já existe frete em aberto na comunidade <strong>${comunidadeAtual}</strong>!`
+      : `Já existe frete em aberto nesta propriedade!`;
+    alerta.style.display='block';
+    alerta.innerHTML=`<div class="aviso-box" style="background:#E3F2FD;border-color:#90CAF9;color:#0D47A1"><span class="icon">🔔</span><div><strong>${msg}</strong><br><span style="font-size:12px">${lista}</span><br><span style="font-size:12px;margin-top:4px;display:block">Considere consolidar as demandas num único frete.</span></div></div>`;
+  }
+
   const destino = document.getElementById('f-destino').value.trim();
   if(destino && temGPS) calcDistancia();
+}
+
+// Destino como propriedade cadastrada
+function onDestinoSelect() {
+  const idx = parseInt(document.getElementById('f-destino-prop').value);
+  const box = document.getElementById('destino-preview');
+  const fDestinoInput = document.getElementById('f-destino');
+  if(isNaN(idx)) { box.style.display='none'; return; }
+  const p = dadosPropriedades[idx];
+  const nome = p.apelido || p.nome;
+  fDestinoInput.value = `${nome} — ${p.municipio||p.produtor}`;
+  if(p.lat && p.lng) {
+    box.style.display='block';
+    box.innerHTML=`<div class="gps-box ok" style="margin-top:0"><div><div style="font-size:11px;font-weight:600;color:var(--green)">📍 Destino com GPS</div><div class="gps-coords">${p.lat}, ${p.lng}</div></div></div>`;
+    // Guarda coords do destino para cálculo
+    document.getElementById('f-destino').dataset.destLat = p.lat;
+    document.getElementById('f-destino').dataset.destLng = p.lng;
+  } else {
+    box.style.display='none';
+    delete document.getElementById('f-destino').dataset.destLat;
+  }
+  calcDistancia();
+}
+
+function abrirRotaDestino() {
+  const propIdx = parseInt(document.getElementById('f-prop-sel').value);
+  const destPropIdx = parseInt(document.getElementById('f-destino-prop').value);
+  const destInput = document.getElementById('f-destino').value.trim();
+  const destInputEl = document.getElementById('f-destino');
+  let origem='', destino='';
+
+  if(!isNaN(propIdx) && dadosPropriedades[propIdx]?.lat) {
+    const p = dadosPropriedades[propIdx];
+    origem = `${p.lat},${p.lng}`;
+  }
+  if(!isNaN(destPropIdx) && dadosPropriedades[destPropIdx]?.lat) {
+    const d = dadosPropriedades[destPropIdx];
+    destino = `${d.lat},${d.lng}`;
+  } else if(destInputEl.dataset.destLat) {
+    destino = `${destInputEl.dataset.destLat},${destInputEl.dataset.destLng}`;
+  } else if(destInput) {
+    destino = encodeURIComponent(destInput);
+  }
+
+  if(!destino) { toastErr('Informe o destino final.'); return; }
+  const url = origem
+    ? `https://www.google.com/maps/dir/?api=1&origin=${origem}&destination=${destino}&travelmode=driving`
+    : `https://www.google.com/maps/dir/?api=1&destination=${destino}&travelmode=driving`;
+  window.open(url,'_blank');
 }
 
 // =====================================================================
@@ -931,21 +1031,26 @@ async function salvarFrete() {
   const arrobas=parseFloat(document.getElementById('f-arrobas').value)||0;
   const renda=parseFloat(document.getElementById('f-renda').value)||0;
   const aproveit=parseFloat(document.getElementById('f-aproveit').value)||0;
+  const cargaKgManual=parseFloat(document.getElementById('f-carga-kg').value)||0;
   let pesoEstimado=0, sacasEquiv=0;
-  if(tipo==='beneficiado'||tipo==='escolha'){pesoEstimado=sacas*60;sacasEquiv=sacas;}
-  else if(tipo==='cereja'){sacasEquiv=(tambores*20)/550;pesoEstimado=sacasEquiv*60;}
-  else if(tipo==='coco'){pesoEstimado=arrobas*30;sacasEquiv=renda>0?(pesoEstimado*renda/100)/60:0;}
+  if(tipo==='beneficiado'||tipo==='escolha'){pesoEstimado=sacas>0?sacas*60:cargaKgManual;sacasEquiv=pesoEstimado/60;}
+  else if(tipo==='cereja'){sacasEquiv=(tambores*20)/550;pesoEstimado=cargaKgManual||sacasEquiv*60;}
+  else if(tipo==='coco'){pesoEstimado=arrobas>0?arrobas*30:cargaKgManual;sacasEquiv=renda>0?(pesoEstimado*renda/100)/60:0;}
   const tipoLabel={'beneficiado':'Café Beneficiado','escolha':'Café Escolha','cereja':'Café Cereja','coco':'Café em Coco'}[tipo]||tipo;
+  const destEl=document.getElementById('f-destino');
   const reg={
     id:Date.now(),data,hora:document.getElementById('f-hora').value,
     motorista:document.getElementById('f-motorista').value,
     veiculo:vei?vei.placa:'',veiculoNome:vei?vei.nome:'',
     produtor,municipio:document.getElementById('f-municipio').value,
-    propNome:prop?.nome||produtor,propLat:prop?.lat||'',propLng:prop?.lng||'',
+    propNome:prop?.nome||produtor,propApelido:prop?.apelido||'',propComunidade:prop?.comunidade||'',
+    propLat:prop?.lat||'',propLng:prop?.lng||'',
     tipo,tipoLabel,
     sacas,tambores,arrobas,renda,aproveit,
+    cargaKg:cargaKgManual,
     pesoEstimado:Math.round(pesoEstimado),sacasEquiv:+sacasEquiv.toFixed(2),
-    destino:document.getElementById('f-destino').value,
+    destino:destEl.value,
+    destinoLat:destEl.dataset.destLat||'',destinoLng:destEl.dataset.destLng||'',
     nf:document.getElementById('f-nf').value,
     pesoBalanca:parseFloat(document.getElementById('f-peso-balanca').value)||0,
     km:parseInt(document.getElementById('f-km').value)||0,
@@ -960,15 +1065,17 @@ async function salvarFrete() {
 
 function resetForm(){
   ['f-produtor','f-municipio','f-veiculo','f-sacas','f-tambores','f-arrobas','f-renda',
-   'f-aproveit','f-destino','f-nf','f-peso-balanca','f-km','f-valor','f-obs'].forEach(id=>{
-    const el=document.getElementById(id);if(el)el.value='';
+   'f-aproveit','f-carga-kg','f-destino','f-nf','f-peso-balanca','f-km','f-valor','f-obs'].forEach(id=>{
+    const el=document.getElementById(id);if(el){el.value='';delete el.dataset.destLat;delete el.dataset.destLng;}
   });
   document.getElementById('f-prop-sel').value='';
+  const sd=document.getElementById('f-destino-prop');if(sd)sd.value='';
   document.getElementById('prop-preview').style.display='none';
   document.getElementById('alerta-frete-duplo').style.display='none';
   document.getElementById('calc-result').style.display='none';
   document.getElementById('cap-aviso').style.display='none';
   document.getElementById('veiculo-cap-box').style.display='none';
+  document.getElementById('destino-preview').style.display='none';
   const h=new Date(),pad=n=>String(n).padStart(2,'0');
   document.getElementById('f-data').value=`${h.getFullYear()}-${pad(h.getMonth()+1)}-${pad(h.getDate())}`;
   document.getElementById('f-hora').value='07:00';
@@ -1259,13 +1366,15 @@ function renderProps(){
   if(!dadosPropriedades.length){cont.innerHTML='<div class="empty"><div class="empty-icon">📍</div><p>Nenhuma propriedade cadastrada.</p></div>';return;}
   cont.innerHTML='<div class="prop-grid">'+dadosPropriedades.map((p,i)=>{
     const tGPS=p.lat&&p.lng;
-    const tags=p.tags?.length?`<div class="prop-tags">${p.tags.map(t=>`<span class="prop-tag">${t}</span>`).join('')}</div>`:'';
+    const nomeExib=p.apelido?`${p.nome} <span style="color:var(--text-light);font-size:11px">(${p.apelido})</span>`:p.nome;
     return `<div class="prop-card">
-      <div class="prop-nome">${p.nome}</div>
-      <div class="prop-produtor">👤 ${p.produtor||'—'} · 🏙️ ${p.municipio||'—'}</div>
+      <div class="prop-nome">${nomeExib}</div>
+      <div class="prop-produtor">👤 ${p.produtor||'—'}${p.contato&&p.contato!==p.produtor?` <span style="color:var(--text-light);font-size:11px">· contato: ${p.contato}</span>`:''}</div>
+      ${p.comunidade?`<div style="font-size:12px;color:var(--blue);margin-bottom:4px">🏘️ ${p.comunidade}</div>`:''}
+      <div style="font-size:11px;color:var(--text-light);margin-bottom:6px">🏙️ ${p.municipio||'—'}</div>
       ${tGPS?`<div class="prop-gps">📡 ${p.lat}, ${p.lng}</div>`:`<div class="prop-sem-gps">⚠️ Sem GPS</div>`}
-      ${tags}${p.obs?`<div style="font-size:11px;color:var(--text-light);margin-bottom:6px;font-style:italic">${p.obs}</div>`:''}
-      ${p.telefone?`<div style="font-size:11px;color:var(--text-light);margin-bottom:8px">📞 ${p.telefone}</div>`:''}
+      ${p.obs?`<div style="font-size:11px;color:var(--text-light);margin-bottom:6px;font-style:italic">📝 ${p.obs}</div>`:''}
+      ${p.telefone?`<div style="font-size:11px;color:var(--text-mid);margin-bottom:8px">📞 ${p.telefone}</div>`:''}
       <div class="prop-actions">
         ${tGPS?`<a class="btn-map" style="font-size:11px;padding:5px 9px" href="https://www.google.com/maps/dir/?api=1&destination=${p.lat},${p.lng}&travelmode=driving" target="_blank">🗺️ Rota</a>
                 <a class="btn-map-pin" style="font-size:11px;padding:5px 9px" href="https://www.google.com/maps/search/?api=1&query=${p.lat},${p.lng}" target="_blank">📍 Local</a>`:''}
@@ -1276,25 +1385,53 @@ function renderProps(){
   }).join('')+'</div>';
 }
 
-function openPropModal(){editandoPropIdx=null;document.getElementById('mp-title').textContent='📍 Nova Propriedade';['p-nome','p-produtor','p-municipio','p-telefone','p-lat','p-lng','p-obs'].forEach(id=>{const e=document.getElementById(id);if(e)e.value='';});document.querySelectorAll('#tags-check input').forEach(cb=>cb.checked=false);document.getElementById('gps-preview').innerHTML='';document.getElementById('modal-prop').classList.add('open');}
+function openPropModal(){
+  editandoPropIdx=null;
+  document.getElementById('mp-title').textContent='📍 Nova Propriedade';
+  ['p-nome','p-apelido','p-comunidade','p-municipio','p-produtor','p-telefone','p-contato','p-lat','p-lng','p-obs'].forEach(id=>{
+    const e=document.getElementById(id);if(e)e.value='';
+  });
+  document.getElementById('gps-preview').innerHTML='';
+  document.getElementById('modal-prop').classList.add('open');
+}
+
 function editarProp(idx){
   const p=dadosPropriedades[idx]; editandoPropIdx=idx;
   document.getElementById('mp-title').textContent='✏️ Editar Propriedade';
-  ['p-nome','p-produtor','p-municipio','p-telefone','p-lat','p-lng','p-obs'].forEach(id=>{
-    const key=id.replace('p-',''); const e=document.getElementById(id);
-    if(e)e.value=p[key]||p[id.replace('p-','')]||'';
-  });
-  document.getElementById('p-nome').value=p.nome||'';document.getElementById('p-produtor').value=p.produtor||'';document.getElementById('p-municipio').value=p.municipio||'';document.getElementById('p-telefone').value=p.telefone||'';document.getElementById('p-lat').value=p.lat||'';document.getElementById('p-lng').value=p.lng||'';document.getElementById('p-obs').value=p.obs||'';
-  document.querySelectorAll('#tags-check input').forEach(cb=>cb.checked=(p.tags||[]).includes(cb.value));
+  document.getElementById('p-nome').value=p.nome||'';
+  document.getElementById('p-apelido').value=p.apelido||'';
+  document.getElementById('p-comunidade').value=p.comunidade||'';
+  document.getElementById('p-municipio').value=p.municipio||'';
+  document.getElementById('p-produtor').value=p.produtor||'';
+  document.getElementById('p-telefone').value=p.telefone||'';
+  document.getElementById('p-contato').value=p.contato||'';
+  document.getElementById('p-lat').value=p.lat||'';
+  document.getElementById('p-lng').value=p.lng||'';
+  document.getElementById('p-obs').value=p.obs||'';
   previewGPS();
   document.getElementById('modal-prop').classList.add('open');
 }
+
 function excluirProp(idx){if(!confirm('Excluir esta propriedade?'))return;dadosPropriedades.splice(idx,1);salvarPropsLocal();updateBadges();updateSelects();renderProps();toastOk('Propriedade removida.');}
+
 async function salvarPropriedade(){
-  const nome=document.getElementById('p-nome').value.trim(),produtor=document.getElementById('p-produtor').value.trim();
-  if(!nome||!produtor){alert('Informe o nome e o produtor.');return;}
-  const tags=[...document.querySelectorAll('#tags-check input:checked')].map(cb=>cb.value);
-  const prop={id:editandoPropIdx!==null?dadosPropriedades[editandoPropIdx].id:Date.now(),nome,produtor,municipio:document.getElementById('p-municipio').value,telefone:document.getElementById('p-telefone').value,lat:document.getElementById('p-lat').value.trim(),lng:document.getElementById('p-lng').value.trim(),obs:document.getElementById('p-obs').value,tags,sinc:false};
+  const nome=document.getElementById('p-nome').value.trim();
+  const produtor=document.getElementById('p-produtor').value.trim();
+  if(!nome||!produtor){alert('Informe o nome da propriedade e o produtor.');return;}
+  const prop={
+    id:editandoPropIdx!==null?dadosPropriedades[editandoPropIdx].id:Date.now(),
+    nome,
+    apelido:document.getElementById('p-apelido').value.trim(),
+    comunidade:document.getElementById('p-comunidade').value.trim(),
+    municipio:document.getElementById('p-municipio').value,
+    produtor,
+    telefone:document.getElementById('p-telefone').value,
+    contato:document.getElementById('p-contato').value.trim(),
+    lat:document.getElementById('p-lat').value.trim(),
+    lng:document.getElementById('p-lng').value.trim(),
+    obs:document.getElementById('p-obs').value,
+    sinc:false
+  };
   if(editandoPropIdx!==null)dadosPropriedades[editandoPropIdx]=prop;else dadosPropriedades.push(prop);
   salvarPropsLocal();updateBadges();updateSelects();renderProps();closeModal('prop');
   toastOk('Propriedade salva! Sincronizando...');if(msToken)await sincPropriedade(prop);
@@ -1412,18 +1549,41 @@ async function carregarOneDrive(){
     const fid=(await ck.json()).id;
     const meta=await(await fetch(`https://graph.microsoft.com/v1.0/me/drive/items/${fid}?select=name,size,file`,{headers:{Authorization:'Bearer '+msToken}})).json();
     if(!meta.file||meta.size<1000){setSinc('ok','Conectado');return;}
-    const abas=(await(await fetch(`https://graph.microsoft.com/v1.0/me/drive/items/${fid}/workbook/worksheets`,{headers:{Authorization:'Bearer '+msToken}})).json()).value.map(s=>s.name);
+    // null-safe worksheets
+    const wsResp=await(await fetch(`https://graph.microsoft.com/v1.0/me/drive/items/${fid}/workbook/worksheets`,{headers:{Authorization:'Bearer '+msToken}})).json();
+    const abas=(wsResp?.value||[]).map(s=>s.name);
     if(!abas.includes(mes)){setSinc('ok','Conectado');return;}
     const rr=await fetch(`https://graph.microsoft.com/v1.0/me/drive/items/${fid}/workbook/worksheets/${encodeURIComponent(mes)}/usedRange`,{headers:{Authorization:'Bearer '+msToken}});
     if(!rr.ok){setSinc('ok','Conectado');return;}
-    const rows=(await rr.json()).values||[];
+    const rrJson=await rr.json().catch(()=>({}));
+    const rows=rrJson?.values||[];
     if(rows.length<=1){setSinc('ok','Conectado');return;}
     const novos=[];
     for(let i=1;i<rows.length;i++){
       const r=rows[i];if(!r[0])continue;
       const pt=r[0]?String(r[0]).split('/'):[];
       const di=pt.length===3?`${pt[2]}-${pt[1].padStart(2,'0')}-${pt[0].padStart(2,'0')}`:'';
-      novos.push({id:Date.now()+i*11,data:di,hora:r[1]||'',motorista:r[2]||'',veiculo:r[3]||'',veiculoNome:r[4]||'',produtor:r[5]||'',municipio:r[6]||'',propNome:r[7]||'',propLat:r[8]||'',propLng:r[9]||'',tipoLabel:r[10]||'',tipo:r[11]||'',sacas:parseFloat(r[12])||0,tambores:parseFloat(r[13])||0,arrobas:parseFloat(r[14])||0,renda:parseFloat(r[15])||0,aproveit:parseFloat(r[16])||0,pesoEstimado:parseInt(r[17])||0,sacasEquiv:parseFloat(r[18])||0,destino:r[19]||'',nf:r[20]||'',pesoBalanca:parseFloat(r[21])||0,km:parseInt(r[22])||0,valor:parseFloat(r[23])||0,obs:r[24]||'',status:r[25]||'Concluído',sinc:true,fromCloud:true});
+      // Detecta formato novo (31 cols) vs antigo (26)
+      const novo=r.length>=28;
+      novos.push({
+        id:Date.now()+i*11,data:di,
+        hora:r[1]||'',motorista:r[2]||'',veiculo:r[3]||'',veiculoNome:r[4]||'',
+        produtor:r[5]||'',municipio:r[6]||'',propNome:r[7]||'',
+        propApelido:novo?(r[8]||''):'',propComunidade:novo?(r[9]||''):'',
+        propLat:novo?(r[10]||''):(r[8]||''),propLng:novo?(r[11]||''):(r[9]||''),
+        tipoLabel:novo?(r[12]||''):(r[10]||''),tipo:novo?(r[13]||''):(r[11]||''),
+        sacas:parseFloat(novo?r[14]:r[12])||0,tambores:parseFloat(novo?r[15]:r[13])||0,
+        arrobas:parseFloat(novo?r[16]:r[14])||0,renda:parseFloat(novo?r[17]:r[15])||0,
+        aproveit:parseFloat(novo?r[18]:r[16])||0,
+        cargaKg:parseFloat(novo?r[19]:0)||0,
+        pesoEstimado:parseInt(novo?r[20]:r[17])||0,sacasEquiv:parseFloat(novo?r[21]:r[18])||0,
+        destino:novo?(r[22]||''):(r[19]||''),
+        destinoLat:novo?(r[23]||''):'',destinoLng:novo?(r[24]||''):'',
+        nf:novo?(r[25]||''):(r[20]||''),pesoBalanca:parseFloat(novo?r[26]:r[21])||0,
+        km:parseInt(novo?r[27]:r[22])||0,valor:parseFloat(novo?r[28]:r[23])||0,
+        obs:novo?(r[29]||''):(r[24]||''),status:novo?(r[30]||'Concluído'):(r[25]||'Concluído'),
+        sinc:true,fromCloud:true
+      });
     }
     if(novos.length>0){
       const chave=d=>`${d.data}|${d.produtor}|${d.hora}`;const cc=new Set(novos.map(chave));
@@ -1451,14 +1611,25 @@ async function appendFrtExcel(reg){
   const fid=await getOrCreateExcel(`${raiz}/Fretes_${ano}.xlsx`);
   await garantirAba(fid,mes,'frt');
   const df=d.toLocaleDateString('pt-BR');
-  const linha=[df,reg.hora||'',reg.motorista||'',reg.veiculo||'',reg.veiculoNome||'',reg.produtor||'',reg.municipio||'',reg.propNome||'',reg.propLat||'',reg.propLng||'',reg.tipoLabel||'',reg.tipo||'',reg.sacas||0,reg.tambores||0,reg.arrobas||0,reg.renda||0,reg.aproveit||0,reg.pesoEstimado||0,reg.sacasEquiv||0,reg.destino||'',reg.nf||'',reg.pesoBalanca||0,reg.km||0,reg.valor||0,reg.obs||'',reg.status||''];
+  const linha=[
+    df,reg.hora||'',reg.motorista||'',reg.veiculo||'',reg.veiculoNome||'',
+    reg.produtor||'',reg.municipio||'',reg.propNome||'',reg.propApelido||'',reg.propComunidade||'',
+    reg.propLat||'',reg.propLng||'',reg.tipoLabel||'',reg.tipo||'',
+    reg.sacas||0,reg.tambores||0,reg.arrobas||0,reg.renda||0,reg.aproveit||0,
+    reg.cargaKg||0,reg.pesoEstimado||0,reg.sacasEquiv||0,
+    reg.destino||'',reg.destinoLat||'',reg.destinoLng||'',
+    reg.nf||'',reg.pesoBalanca||0,reg.km||0,reg.valor||0,reg.obs||'',reg.status||''
+  ];
   const hdrs={'Authorization':'Bearer '+msToken,'Content-Type':'application/json'};
   await delay(1000);
-  const ur=await fetch(`https://graph.microsoft.com/v1.0/me/drive/items/${fid}/workbook/worksheets/${encodeURIComponent(mes)}/usedRange`,{headers:hdrs});
-  if(!ur.ok){const e=await ur.json().catch(()=>({}));throw new Error('usedRange: '+ur.status);}
-  const next=(await ur.json()).rowCount+1;
-  const wr=await fetch(`https://graph.microsoft.com/v1.0/me/drive/items/${fid}/workbook/worksheets/${encodeURIComponent(mes)}/range(address='A${next}:Z${next}')`,{method:'PATCH',headers:hdrs,body:JSON.stringify({values:[linha]})});
-  if(!wr.ok){const e=await wr.json().catch(()=>({}));throw new Error('write: '+wr.status);}
+  const next=await getNextRow(fid,mes,hdrs);
+  // 31 colunas: A→AE
+  const lastCol='AE';
+  const wr=await fetch(
+    `https://graph.microsoft.com/v1.0/me/drive/items/${fid}/workbook/worksheets/${encodeURIComponent(mes)}/range(address='A${next}:${lastCol}${next}')`,
+    {method:'PATCH',headers:hdrs,body:JSON.stringify({values:[linha]})}
+  );
+  if(!wr.ok){const e=await wr.json().catch(()=>({}));throw new Error('write: '+wr.status+' '+(e.error?.message||''));}
 }
 
 // ONEDRIVE — PROPRIEDADES
@@ -1468,16 +1639,46 @@ async function carregarPropsOneDrive(){
     const raiz=odPath.normalize('NFD').replace(/[\u0300-\u036f]/g,'');
     const enc=`${raiz}/Clientes_Propriedades.xlsx`.split('/').map(p=>encodeURIComponent(p)).join('/');
     const ck=await fetch(`https://graph.microsoft.com/v1.0/me/drive/root:/${enc}`,{headers:{Authorization:'Bearer '+msToken}});
-    if(!ck.ok)return;const fid=(await ck.json()).id;
+    if(!ck.ok)return;
+    const fid=(await ck.json()).id;
     const meta=await(await fetch(`https://graph.microsoft.com/v1.0/me/drive/items/${fid}?select=name,size,file`,{headers:{Authorization:'Bearer '+msToken}})).json();
     if(!meta.file||meta.size<1000)return;
-    const abas=(await(await fetch(`https://graph.microsoft.com/v1.0/me/drive/items/${fid}/workbook/worksheets`,{headers:{Authorization:'Bearer '+msToken}})).json()).value.map(s=>s.name);
-    if(!abas.length)return;const aba=abas[0];
+    // Listar abas com null-safety
+    const abasResp=await(await fetch(`https://graph.microsoft.com/v1.0/me/drive/items/${fid}/workbook/worksheets`,{headers:{Authorization:'Bearer '+msToken}})).json();
+    const abas=(abasResp?.value||[]).map(s=>s.name);
+    if(!abas.length)return;
+    const aba=abas[0];
     const rr=await fetch(`https://graph.microsoft.com/v1.0/me/drive/items/${fid}/workbook/worksheets/${encodeURIComponent(aba)}/usedRange`,{headers:{Authorization:'Bearer '+msToken}});
-    if(!rr.ok)return;const rows=(await rr.json()).values||[];if(rows.length<=1)return;
+    if(!rr.ok)return;
+    const rrJson=await rr.json().catch(()=>({}));
+    const rows=rrJson?.values||[];
+    if(rows.length<=1)return;
     const props=[];
-    for(let i=1;i<rows.length;i++){const r=rows[i];if(!r[0])continue;props.push({id:Date.now()+i*13,nome:r[0]||'',produtor:r[1]||'',municipio:r[2]||'',telefone:r[3]||'',lat:r[4]||'',lng:r[5]||'',obs:r[6]||'',tags:r[7]?r[7].split(',').map(s=>s.trim()).filter(Boolean):[],sinc:true});}
-    if(props.length>0){const cc=new Set(props.map(p=>p.nome+'|'+p.produtor));dadosPropriedades=[...dadosPropriedades.filter(p=>!p.sinc&&!cc.has(p.nome+'|'+p.produtor)),...props];salvarPropsLocal();updateBadges();updateSelects();renderProps();toastOk(props.length+' propriedades carregadas.');}
+    for(let i=1;i<rows.length;i++){
+      const r=rows[i];if(!r[0])continue;
+      // Detecta formato novo (10 cols) vs antigo (8 cols)
+      const isNovo=r.length>=9&&(r[1]!==undefined&&!r[1].toString().match(/^\d/));
+      props.push({
+        id:Date.now()+i*13,
+        nome:r[0]||'',
+        apelido:isNovo?(r[1]||''):'',
+        comunidade:isNovo?(r[2]||''):'',
+        produtor:isNovo?(r[3]||''):(r[1]||''),
+        contato:isNovo?(r[4]||''):'',
+        municipio:isNovo?(r[5]||''):(r[2]||''),
+        telefone:isNovo?(r[6]||''):(r[3]||''),
+        lat:isNovo?(r[7]||''):(r[4]||''),
+        lng:isNovo?(r[8]||''):(r[5]||''),
+        obs:isNovo?(r[9]||''):(r[6]||''),
+        sinc:true
+      });
+    }
+    if(props.length>0){
+      const cc=new Set(props.map(p=>p.nome+'|'+p.produtor));
+      dadosPropriedades=[...dadosPropriedades.filter(p=>!p.sinc&&!cc.has(p.nome+'|'+p.produtor)),...props];
+      salvarPropsLocal();updateBadges();updateSelects();renderProps();
+      toastOk(props.length+' propriedades carregadas.');
+    }
   }catch(e){console.warn('Erro carregar props:',e);}
 }
 
@@ -1487,14 +1688,39 @@ async function sincPropriedade(prop){
     const raiz=odPath.normalize('NFD').replace(/[\u0300-\u036f]/g,'');
     const fid=await getOrCreateExcel(`${raiz}/Clientes_Propriedades.xlsx`);
     await garantirAba(fid,'Clientes','prop');
-    const linha=[prop.nome||'',prop.produtor||'',prop.municipio||'',prop.telefone||'',prop.lat||'',prop.lng||'',prop.obs||'',(prop.tags||[]).join(', ')];
+    const linha=[
+      prop.nome||'',prop.apelido||'',prop.comunidade||'',prop.produtor||'',
+      prop.contato||'',prop.municipio||'',prop.telefone||'',
+      prop.lat||'',prop.lng||'',prop.obs||''
+    ];
     const hdrs={'Authorization':'Bearer '+msToken,'Content-Type':'application/json'};
     await delay(1000);
-    const ur=await fetch(`https://graph.microsoft.com/v1.0/me/drive/items/${fid}/workbook/worksheets/Clientes/usedRange`,{headers:hdrs});
-    const next=ur.ok?(await ur.json()).rowCount+1:2;
-    await fetch(`https://graph.microsoft.com/v1.0/me/drive/items/${fid}/workbook/worksheets/Clientes/range(address='A${next}:H${next}')`,{method:'PATCH',headers:hdrs,body:JSON.stringify({values:[linha]})});
+    const next=await getNextRow(fid,'Clientes',hdrs);
+    const lastCol='J';
+    await fetch(`https://graph.microsoft.com/v1.0/me/drive/items/${fid}/workbook/worksheets/Clientes/range(address='A${next}:${lastCol}${next}')`,
+      {method:'PATCH',headers:hdrs,body:JSON.stringify({values:[linha]})});
     prop.sinc=true;salvarPropsLocal();toastOk('Propriedade sincronizada ✓');
   }catch(e){toastErr('Erro sinc. prop: '+(e.message||''));}
+}
+
+// getNextRow — substitui usedRange que retorna 501 em planilhas recém-criadas
+// Lê a coluna A até encontrar linha vazia, com fallback seguro
+async function getNextRow(fileId, worksheetName, hdrs){
+  try{
+    // Lê até 500 linhas da coluna A
+    const r=await fetch(
+      `https://graph.microsoft.com/v1.0/me/drive/items/${fileId}/workbook/worksheets/${encodeURIComponent(worksheetName)}/range(address='A1:A500')`,
+      {headers:hdrs}
+    );
+    if(!r.ok) return 2; // fallback seguro
+    const d=await r.json().catch(()=>({}));
+    const vals=d?.values||[];
+    // Encontra a primeira célula vazia após o cabeçalho
+    for(let i=1;i<vals.length;i++){
+      if(!vals[i][0]||vals[i][0]==='') return i+1;
+    }
+    return vals.length+1;
+  }catch(e){ return 2; }
 }
 
 // EXCEL HELPERS
@@ -1522,8 +1748,8 @@ async function garantirAba(fileId,mes,tipo){
     await delay(3000);
   }
   const cabMap={
-    frt:[['Data','Hora','Motorista','Veiculo','VeiculoNome','Produtor','Municipio','Propriedade','Latitude','Longitude','TipoLabel','Tipo','Sacas','Tambores','Arrobas','Renda%','Aproveit%','PesoEstimado_kg','SacasEquiv','Destino','NF_Ticket','PesoBalanca_kg','Km','Valor_R$','Observacoes','Status']],
-    prop:[['Propriedade','Produtor','Municipio','Telefone','Latitude','Longitude','Observacoes','Tags']]
+    frt:[['Data','Hora','Motorista','Veiculo','VeiculoNome','Produtor','Municipio','Propriedade','Apelido','Comunidade','Latitude','Longitude','TipoLabel','Tipo','Sacas','Tambores','Arrobas','Renda%','Aproveit%','CargaKg','PesoEstimado_kg','SacasEquiv','Destino','DestinoLat','DestinoLng','NF_Ticket','PesoBalanca_kg','Km','Valor_R$','Observacoes','Status']],
+    prop:[['Propriedade','Apelido','Comunidade','Produtor','Contato','Municipio','Telefone','Latitude','Longitude','Observacoes']]
   };
   const cab=cabMap[tipo];if(!cab)return;
   await delay(1000);
