@@ -348,18 +348,14 @@ body{font-family:'DM Sans',sans-serif;background:var(--cream);min-height:100vh;c
 
   <div class="card">
     <div class="section-title">Destino e Rota</div>
-    <div class="form-group" style="margin-bottom:.875rem">
-      <label>Destino Final — Propriedade cadastrada</label>
-      <select id="f-destino-prop" onchange="onDestinoSelect()">
-        <option value="">— Selecione uma propriedade cadastrada (opcional) —</option>
-      </select>
-    </div>
     <div style="display:flex;gap:8px;align-items:flex-end">
       <div class="form-group" style="flex:1;margin:0">
-        <label>Destino Final — Endereço livre</label>
-        <input type="text" id="f-destino" placeholder="Ex: Armazém Vilela — Capitólio">
+        <label>Destino Final — Propriedade cadastrada</label>
+        <select id="f-destino-prop" onchange="onDestinoSelect()">
+          <option value="">— Selecione uma propriedade —</option>
+        </select>
       </div>
-      <button type="button" onclick="abrirRotaDestino()" class="btn-map" style="padding:10px 13px;flex-shrink:0;margin-bottom:0" title="Origem = propriedade selecionada; Destino = campo acima">🗺️ Ver Rota</button>
+      <button type="button" onclick="abrirRotaDestino()" class="btn-map" style="padding:10px 13px;flex-shrink:0;margin-bottom:0" title="Origem = propriedade de saída (com GPS); Destino = propriedade selecionada acima">🗺️ Ver Rota</button>
     </div>
     <div id="destino-gps-info" style="display:none;margin-top:8px"></div>
   </div>
@@ -934,48 +930,34 @@ function onPropSelect() {
 function onDestinoSelect() {
   const idx = parseInt(document.getElementById('f-destino-prop').value);
   const infoBox = document.getElementById('destino-gps-info');
-  const dest = document.getElementById('f-destino');
-  if(isNaN(idx) || idx < 0) {
-    infoBox.style.display='none';
-    delete dest.dataset.destLat;
-    delete dest.dataset.destLng;
-    return;
-  }
+  if(isNaN(idx) || idx < 0) { infoBox.style.display='none'; return; }
   const p = dadosPropriedades[idx];
   if(!p) return;
   const nome = p.apelido || p.nome;
-  dest.value = `${nome}${p.municipio ? ' — '+p.municipio : ''}`;
   if(p.lat && p.lng) {
-    dest.dataset.destLat = p.lat;
-    dest.dataset.destLng = p.lng;
     infoBox.style.display='block';
     infoBox.innerHTML=`<div class="gps-box ok" style="margin-top:0"><div>
-      <div style="font-size:11px;font-weight:600;color:var(--green)">📍 GPS do destino registrado</div>
+      <div style="font-size:11px;font-weight:600;color:var(--green)">📍 ${nome} — GPS registrado</div>
       <div class="gps-coords">${p.lat}, ${p.lng}</div>
     </div></div>`;
   } else {
-    delete dest.dataset.destLat;
-    delete dest.dataset.destLng;
-    infoBox.style.display='none';
+    infoBox.style.display='block';
+    infoBox.innerHTML=`<div class="gps-box sem" style="margin-top:0">
+      <div style="font-size:11px;color:var(--orange)">⚠️ ${nome} — sem GPS cadastrado</div>
+    </div>`;
   }
 }
 
-// Botão Ver Rota:
-// ORIGEM = propriedade de saída (f-prop-sel com GPS)
-// DESTINO = GPS da propriedade destino selecionada, ou texto livre do campo f-destino
+// Ver Rota: ORIGEM = prop. de saída (f-prop-sel), DESTINO = prop. de chegada (f-destino-prop)
 function abrirRotaDestino() {
-  const propIdx = parseInt(document.getElementById('f-prop-sel').value);
-  const prop = (!isNaN(propIdx) && propIdx >= 0) ? dadosPropriedades[propIdx] : null;
-  const destEl = document.getElementById('f-destino');
-  const destTexto = destEl ? destEl.value.trim() : '';
-  const destLat = destEl ? destEl.dataset.destLat : '';
-  const destLng = destEl ? destEl.dataset.destLng : '';
-
-  if(!destTexto && !destLat) { toastErr('Informe o destino final.'); return; }
-
-  const origemParam = (prop?.lat && prop?.lng) ? `${prop.lat},${prop.lng}` : '';
-  const destinoParam = (destLat && destLng) ? `${destLat},${destLng}` : encodeURIComponent(destTexto);
-
+  const origemIdx = parseInt(document.getElementById('f-prop-sel').value);
+  const destIdx   = parseInt(document.getElementById('f-destino-prop').value);
+  const origem = (!isNaN(origemIdx) && origemIdx >= 0) ? dadosPropriedades[origemIdx] : null;
+  const dest   = (!isNaN(destIdx)   && destIdx   >= 0) ? dadosPropriedades[destIdx]   : null;
+  if(!dest)             { toastErr('Selecione uma propriedade de destino.'); return; }
+  if(!dest.lat||!dest.lng) { toastErr('A propriedade de destino não tem GPS cadastrado.'); return; }
+  const destinoParam = `${dest.lat},${dest.lng}`;
+  const origemParam  = (origem?.lat && origem?.lng) ? `${origem.lat},${origem.lng}` : '';
   const url = origemParam
     ? `https://www.google.com/maps/dir/?api=1&origin=${origemParam}&destination=${destinoParam}&travelmode=driving`
     : `https://www.google.com/maps/dir/?api=1&destination=${destinoParam}&travelmode=driving`;
@@ -1003,6 +985,9 @@ async function salvarFrete() {
   else if(tipo==='cereja'){sacasEquiv=(tambores*20)/550;pesoEstimado=cargaKgManual||sacasEquiv*60;}
   else if(tipo==='coco'){pesoEstimado=arrobas>0?arrobas*30:cargaKgManual;sacasEquiv=renda>0?(pesoEstimado*renda/100)/60:0;}
   const tipoLabel={'beneficiado':'Café Beneficiado','escolha':'Café Escolha','cereja':'Café Cereja','coco':'Café em Coco'}[tipo]||tipo;
+  const destIdx = parseInt(document.getElementById('f-destino-prop').value);
+  const destProp = (!isNaN(destIdx) && destIdx >= 0) ? dadosPropriedades[destIdx] : null;
+  const destinoNome = destProp ? (destProp.apelido||destProp.nome)+(destProp.municipio?' — '+destProp.municipio:'') : '';
   const reg={
     id:Date.now(),data,hora:document.getElementById('f-hora').value,
     motorista:document.getElementById('f-motorista').value,
@@ -1014,7 +999,8 @@ async function salvarFrete() {
     sacas,tambores,arrobas,renda,aproveit,
     cargaKg:cargaKgManual,
     pesoEstimado:Math.round(pesoEstimado),sacasEquiv:+sacasEquiv.toFixed(2),
-    destino:document.getElementById('f-destino').value,
+    destino:destinoNome,
+    destinoLat:destProp?.lat||'',destinoLng:destProp?.lng||'',
     km:parseInt(document.getElementById('f-km').value)||0,
     valor:parseFloat(document.getElementById('f-valor').value)||0,
     obs:document.getElementById('f-obs').value,
@@ -1027,9 +1013,8 @@ async function salvarFrete() {
 
 function resetForm(){
   ['f-produtor','f-municipio','f-veiculo','f-sacas','f-tambores','f-arrobas','f-renda',
-   'f-aproveit','f-carga-kg','f-destino','f-km','f-valor','f-obs'].forEach(id=>{
-    const el=document.getElementById(id);
-    if(el){ el.value=''; delete el.dataset.destLat; delete el.dataset.destLng; }
+   'f-aproveit','f-carga-kg','f-km','f-valor','f-obs'].forEach(id=>{
+    const el=document.getElementById(id); if(el) el.value='';
   });
   document.getElementById('f-prop-sel').value='';
   const sd=document.getElementById('f-destino-prop'); if(sd) sd.value='';
@@ -1512,21 +1497,23 @@ async function carregarOneDrive(){
     const fid=(await ck.json()).id;
     const meta=await(await fetch(`https://graph.microsoft.com/v1.0/me/drive/items/${fid}?select=name,size,file`,{headers:{Authorization:'Bearer '+msToken}})).json();
     if(!meta.file||meta.size<1000){setSinc('ok','Conectado');return;}
-    // null-safe worksheets
-    const wsResp=await(await fetch(`https://graph.microsoft.com/v1.0/me/drive/items/${fid}/workbook/worksheets`,{headers:{Authorization:'Bearer '+msToken}})).json();
+    // Abre sessão ANTES de qualquer chamada de workbook — resolve 501
+    const baseHdrsF={'Authorization':'Bearer '+msToken,'Content-Type':'application/json'};
+    const sessRF=await fetch(`https://graph.microsoft.com/v1.0/me/drive/items/${fid}/workbook/createSession`,
+      {method:'POST',headers:baseHdrsF,body:JSON.stringify({persistChanges:false})}).catch(()=>({ok:false}));
+    const sessIdF=sessRF.ok?(await sessRF.json().catch(()=>({}))).id:'';
+    const wbHdrs={Authorization:'Bearer '+msToken,'Content-Type':'application/json',...(sessIdF?{'workbook-session-id':sessIdF}:{})};
+    // Lista abas com sessão ativa
+    const wsResp=await(await fetch(`https://graph.microsoft.com/v1.0/me/drive/items/${fid}/workbook/worksheets`,{headers:wbHdrs})).json();
     const abas=(wsResp?.value||[]).map(s=>s.name);
-    if(!abas.includes(mes)){setSinc('ok','Conectado');return;}
-    // Cria sessão para evitar 501 no usedRange
-    const sessHdrs={'Authorization':'Bearer '+msToken,'Content-Type':'application/json'};
-    const sessR=await fetch(`https://graph.microsoft.com/v1.0/me/drive/items/${fid}/workbook/createSession`,
-      {method:'POST',headers:sessHdrs,body:JSON.stringify({persistChanges:false})}).catch(()=>({ok:false}));
-    const sessId=sessR.ok?(await sessR.json().catch(()=>({}))).id:'';
-    const readHdrs={Authorization:'Bearer '+msToken,...(sessId?{'workbook-session-id':sessId}:{})};
-    const rr=await fetch(`https://graph.microsoft.com/v1.0/me/drive/items/${fid}/workbook/worksheets/${encodeURIComponent(mes)}/usedRange`,{headers:readHdrs});
+    if(!abas.includes(mes)){
+      if(sessIdF) fetch(`https://graph.microsoft.com/v1.0/me/drive/items/${fid}/workbook/closeSession`,{method:'POST',headers:wbHdrs,body:'{}'}).catch(()=>{});
+      setSinc('ok','Conectado');return;
+    }
+    const rr=await fetch(`https://graph.microsoft.com/v1.0/me/drive/items/${fid}/workbook/worksheets/${encodeURIComponent(mes)}/usedRange`,{headers:wbHdrs});
+    if(sessIdF) fetch(`https://graph.microsoft.com/v1.0/me/drive/items/${fid}/workbook/closeSession`,{method:'POST',headers:wbHdrs,body:'{}'}).catch(()=>{});
     if(!rr.ok){setSinc('ok','Conectado');return;}
     const rrJson=await rr.json().catch(()=>({}));
-    // Fecha sessão
-    if(sessId) fetch(`https://graph.microsoft.com/v1.0/me/drive/items/${fid}/workbook/closeSession`,{method:'POST',headers:sessHdrs,body:'{}'}).catch(()=>{});
     const rows=rrJson?.values||[];
     if(rows.length<=1){setSinc('ok','Conectado');return;}
     const novos=[];
@@ -1619,18 +1606,21 @@ async function carregarPropsOneDrive(){
     const fid=(await ck.json()).id;
     const meta=await(await fetch(`https://graph.microsoft.com/v1.0/me/drive/items/${fid}?select=name,size,file`,{headers:{Authorization:'Bearer '+msToken}})).json();
     if(!meta.file||meta.size<1000)return;
-    const abasResp=await(await fetch(`https://graph.microsoft.com/v1.0/me/drive/items/${fid}/workbook/worksheets`,{headers:{Authorization:'Bearer '+msToken}})).json();
+    // Abre sessão ANTES de qualquer chamada de workbook — resolve 501
+    const baseHdrsP={'Authorization':'Bearer '+msToken,'Content-Type':'application/json'};
+    const sessRP=await fetch(`https://graph.microsoft.com/v1.0/me/drive/items/${fid}/workbook/createSession`,
+      {method:'POST',headers:baseHdrsP,body:JSON.stringify({persistChanges:false})}).catch(()=>({ok:false}));
+    const sessIdP=sessRP.ok?(await sessRP.json().catch(()=>({}))).id:'';
+    const wbHdrsP={Authorization:'Bearer '+msToken,'Content-Type':'application/json',...(sessIdP?{'workbook-session-id':sessIdP}:{})};
+    const abasResp=await(await fetch(`https://graph.microsoft.com/v1.0/me/drive/items/${fid}/workbook/worksheets`,{headers:wbHdrsP})).json();
     const abas=(abasResp?.value||[]).map(s=>s.name);
-    if(!abas.length)return;
+    if(!abas.length){
+      if(sessIdP) fetch(`https://graph.microsoft.com/v1.0/me/drive/items/${fid}/workbook/closeSession`,{method:'POST',headers:wbHdrsP,body:'{}'}).catch(()=>{});
+      return;
+    }
     const aba=abas[0];
-    // Cria sessão para evitar 501 no usedRange
-    const sessHdrs2={'Authorization':'Bearer '+msToken,'Content-Type':'application/json'};
-    const sessR2=await fetch(`https://graph.microsoft.com/v1.0/me/drive/items/${fid}/workbook/createSession`,
-      {method:'POST',headers:sessHdrs2,body:JSON.stringify({persistChanges:false})}).catch(()=>({ok:false}));
-    const sessId2=sessR2.ok?(await sessR2.json().catch(()=>({}))).id:'';
-    const readHdrs2={Authorization:'Bearer '+msToken,...(sessId2?{'workbook-session-id':sessId2}:{})};
-    const rr=await fetch(`https://graph.microsoft.com/v1.0/me/drive/items/${fid}/workbook/worksheets/${encodeURIComponent(aba)}/usedRange`,{headers:readHdrs2});
-    if(sessId2) fetch(`https://graph.microsoft.com/v1.0/me/drive/items/${fid}/workbook/closeSession`,{method:'POST',headers:sessHdrs2,body:'{}'}).catch(()=>{});
+    const rr=await fetch(`https://graph.microsoft.com/v1.0/me/drive/items/${fid}/workbook/worksheets/${encodeURIComponent(aba)}/usedRange`,{headers:wbHdrsP});
+    if(sessIdP) fetch(`https://graph.microsoft.com/v1.0/me/drive/items/${fid}/workbook/closeSession`,{method:'POST',headers:wbHdrsP,body:'{}'}).catch(()=>{});
     if(!rr.ok)return;
     const rrJson=await rr.json().catch(()=>({}));
     const rows=rrJson?.values||[];
