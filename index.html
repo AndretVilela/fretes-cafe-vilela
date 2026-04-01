@@ -695,6 +695,8 @@ function showScreen(name, btn) {
   if(btn) btn.classList.add('active');
   if(name==='agenda')      { renderAgenda(); if(msToken) carregarOneDrive().catch(()=>{}); }
   if(name==='propriedades'){ renderProps(); if(msToken) carregarPropsOneDrive().catch(()=>{}); }
+  if(name==='veiculos')    { renderVeiculos(); if(msToken) carregarVeiculosMotoristasOneDrive().catch(()=>{}); }
+  if(name==='motoristas')  { renderMotoristas(); if(msToken) carregarVeiculosMotoristasOneDrive().catch(()=>{}); }
   if(name==='veiculos')    { renderVeiculos(); }
   if(name==='motoristas')  { renderMotoristas(); }
 }
@@ -746,7 +748,7 @@ function silentRefresh(){const f=document.createElement('iframe');f.style.displa
 function checkToken(){
   const p=new URLSearchParams(window.location.hash.substring(1));
   const t=p.get('access_token'),exp=p.get('expires_in');
-  if(t){msToken=t;salvarToken(t,exp);agendarRefresh(exp);window.history.replaceState({},' ',' ');onConnected();carregarOneDrive().catch(()=>{});carregarPropsOneDrive().catch(()=>{});return;}
+  if(t){msToken=t;salvarToken(t,exp);agendarRefresh(exp);window.history.replaceState({},' ',' ');onConnected();carregarOneDrive().catch(()=>{});carregarPropsOneDrive().catch(()=>{});carregarVeiculosMotoristasOneDrive().catch(()=>{});return;}
   const saved=tokenSalvo();
   if(saved){msToken=saved;fetch('https://graph.microsoft.com/v1.0/me',{headers:{Authorization:'Bearer '+saved}}).then(r=>{if(r.ok){const rem=Math.max(0,(parseInt(localStorage.getItem(TOKEN_EXP)||'0')-Date.now())/1000);agendarRefresh(rem);onConnected();}else{msToken=null;localStorage.removeItem(TOKEN_KEY);localStorage.removeItem(TOKEN_EXP);setDesconectado();}}).catch(()=>{msToken=saved;onConnected();});}
   else setDesconectado();
@@ -1429,7 +1431,9 @@ function salvarVeiculo(){
   if(!capSacas&&!capKg){alert('Informe ao menos uma capacidade (sacas ou kg).');return;}
   const v={id:editandoVeiculoIdx!==null?dadosVeiculos[editandoVeiculoIdx].id:Date.now(),placa,nome,tipo:document.getElementById('v-tipo').value,capSacas,capKg,tara:parseInt(document.getElementById('v-tara').value)||0,motoristaPad:document.getElementById('v-motorista-pad').value,status:document.getElementById('v-status').value,obs:document.getElementById('v-obs').value};
   if(editandoVeiculoIdx!==null)dadosVeiculos[editandoVeiculoIdx]=v;else dadosVeiculos.push(v);
-  salvarVeiculosLocal();updateBadges();updateSelects();renderVeiculos();closeModal('veiculo');toastOk('Veículo salvo!');
+  salvarVeiculosLocal();updateBadges();updateSelects();renderVeiculos();closeModal('veiculo');
+  toastOk('Veículo salvo! Sincronizando...');
+  if(msToken) sincVeiculo(v);
 }
 
 // =====================================================================
@@ -1474,7 +1478,99 @@ function salvarMotorista(){
   const nome=document.getElementById('m-nome').value.trim();if(!nome){alert('Informe o nome.');return;}
   const m={id:editandoMotoristaIdx!==null?dadosMotoristas[editandoMotoristaIdx].id:Date.now(),nome,tel:document.getElementById('m-tel').value,cpf:document.getElementById('m-cpf').value,cnh:document.getElementById('m-cnh').value,cat:document.getElementById('m-cat').value,vcnh:document.getElementById('m-vcnh').value,status:document.getElementById('m-status').value,obs:document.getElementById('m-obs').value};
   if(editandoMotoristaIdx!==null)dadosMotoristas[editandoMotoristaIdx]=m;else dadosMotoristas.push(m);
-  salvarMotoristasLocal();updateBadges();updateSelects();renderMotoristas();closeModal('motorista');toastOk('Motorista salvo!');
+  salvarMotoristasLocal();updateBadges();updateSelects();renderMotoristas();closeModal('motorista');
+  toastOk('Motorista salvo! Sincronizando...');
+  if(msToken) sincMotorista(m);
+}
+
+// =====================================================================
+// ONEDRIVE — VEÍCULOS E MOTORISTAS
+// =====================================================================
+async function sincVeiculo(v){
+  if(!msToken)return;
+  try{
+    const raiz=odPath.normalize('NFD').replace(/[\u0300-\u036f]/g,'');
+    const fid=await getOrCreateExcel(`${raiz}/Clientes_Propriedades.xlsx`);
+    await garantirAba(fid,'Veiculos','vei');
+    const linha=[v.placa||'',v.nome||'',v.tipo||'',v.capSacas||0,v.capKg||0,v.tara||0,v.motoristaPad||'',v.status||'',v.obs||''];
+    const baseHdrs={'Authorization':'Bearer '+msToken,'Content-Type':'application/json'};
+    const sessR=await fetch(`https://graph.microsoft.com/v1.0/me/drive/items/${fid}/workbook/createSession`,
+      {method:'POST',headers:baseHdrs,body:JSON.stringify({persistChanges:true})}).catch(()=>({ok:false}));
+    const sessId=sessR.ok?(await sessR.json().catch(()=>({}))).id:'';
+    const hdrs={...baseHdrs,...(sessId?{'workbook-session-id':sessId}:{})};
+    const next=await getNextRow(fid,'Veiculos',hdrs);
+    await fetch(`https://graph.microsoft.com/v1.0/me/drive/items/${fid}/workbook/worksheets/Veiculos/range(address='A${next}:I${next}')`,
+      {method:'PATCH',headers:hdrs,body:JSON.stringify({values:[linha]})});
+    if(sessId) fetch(`https://graph.microsoft.com/v1.0/me/drive/items/${fid}/workbook/closeSession`,{method:'POST',headers:hdrs,body:'{}'}).catch(()=>{});
+    v.sinc=true; salvarVeiculosLocal(); toastOk('Veículo sincronizado ✓');
+  }catch(e){toastErr('Erro sinc. veículo: '+(e.message||''));}
+}
+
+async function sincMotorista(m){
+  if(!msToken)return;
+  try{
+    const raiz=odPath.normalize('NFD').replace(/[\u0300-\u036f]/g,'');
+    const fid=await getOrCreateExcel(`${raiz}/Clientes_Propriedades.xlsx`);
+    await garantirAba(fid,'Motoristas','mot');
+    const linha=[m.nome||'',m.tel||'',m.cpf||'',m.cnh||'',m.cat||'',m.vcnh||'',m.status||'',m.obs||''];
+    const baseHdrs={'Authorization':'Bearer '+msToken,'Content-Type':'application/json'};
+    const sessR=await fetch(`https://graph.microsoft.com/v1.0/me/drive/items/${fid}/workbook/createSession`,
+      {method:'POST',headers:baseHdrs,body:JSON.stringify({persistChanges:true})}).catch(()=>({ok:false}));
+    const sessId=sessR.ok?(await sessR.json().catch(()=>({}))).id:'';
+    const hdrs={...baseHdrs,...(sessId?{'workbook-session-id':sessId}:{})};
+    const next=await getNextRow(fid,'Motoristas',hdrs);
+    await fetch(`https://graph.microsoft.com/v1.0/me/drive/items/${fid}/workbook/worksheets/Motoristas/range(address='A${next}:H${next}')`,
+      {method:'PATCH',headers:hdrs,body:JSON.stringify({values:[linha]})});
+    if(sessId) fetch(`https://graph.microsoft.com/v1.0/me/drive/items/${fid}/workbook/closeSession`,{method:'POST',headers:hdrs,body:'{}'}).catch(()=>{});
+    m.sinc=true; salvarMotoristasLocal(); toastOk('Motorista sincronizado ✓');
+  }catch(e){toastErr('Erro sinc. motorista: '+(e.message||''));}
+}
+
+async function carregarVeiculosMotoristasOneDrive(){
+  if(!msToken)return;
+  try{
+    const raiz=odPath.normalize('NFD').replace(/[\u0300-\u036f]/g,'');
+    const enc=`${raiz}/Clientes_Propriedades.xlsx`.split('/').map(p=>encodeURIComponent(p)).join('/');
+    const ck=await fetch(`https://graph.microsoft.com/v1.0/me/drive/root:/${enc}`,{headers:{Authorization:'Bearer '+msToken}});
+    if(!ck.ok)return;
+    const fid=(await ck.json()).id;
+    const hdrs={'Authorization':'Bearer '+msToken};
+
+    // Carrega Veículos
+    const rvei=await fetch(`https://graph.microsoft.com/v1.0/me/drive/items/${fid}/workbook/worksheets/Veiculos/range(address='A1:I500')`,{headers:hdrs});
+    if(rvei.ok){
+      let rowsV=((await rvei.json().catch(()=>({}))).values||[]);
+      while(rowsV.length>1&&!rowsV[rowsV.length-1][0])rowsV.pop();
+      if(rowsV.length>1){
+        const novos=rowsV.slice(1).filter(r=>r[0]).map((r,i)=>({
+          id:Date.now()+i*7,sinc:true,
+          placa:r[0]||'',nome:r[1]||'',tipo:r[2]||'',
+          capSacas:parseInt(r[3])||0,capKg:parseInt(r[4])||0,tara:parseInt(r[5])||0,
+          motoristaPad:r[6]||'',status:r[7]||'Disponível',obs:r[8]||''
+        }));
+        const cc=new Set(novos.map(v=>v.placa));
+        dadosVeiculos=[...dadosVeiculos.filter(v=>!v.sinc&&!cc.has(v.placa)),...novos];
+        salvarVeiculosLocal(); updateBadges(); updateSelects(); renderVeiculos();
+      }
+    }
+
+    // Carrega Motoristas
+    const rmot=await fetch(`https://graph.microsoft.com/v1.0/me/drive/items/${fid}/workbook/worksheets/Motoristas/range(address='A1:H500')`,{headers:hdrs});
+    if(rmot.ok){
+      let rowsM=((await rmot.json().catch(()=>({}))).values||[]);
+      while(rowsM.length>1&&!rowsM[rowsM.length-1][0])rowsM.pop();
+      if(rowsM.length>1){
+        const novos=rowsM.slice(1).filter(r=>r[0]).map((r,i)=>({
+          id:Date.now()+i*11,sinc:true,
+          nome:r[0]||'',tel:r[1]||'',cpf:r[2]||'',cnh:r[3]||'',
+          cat:r[4]||'',vcnh:r[5]||'',status:r[6]||'Ativo',obs:r[7]||''
+        }));
+        const cc=new Set(novos.map(m=>m.nome));
+        dadosMotoristas=[...dadosMotoristas.filter(m=>!m.sinc&&!cc.has(m.nome)),...novos];
+        salvarMotoristasLocal(); updateBadges(); updateSelects(); renderMotoristas();
+      }
+    }
+  }catch(e){console.warn('Erro carregar veículos/motoristas:',e);}
 }
 
 // =====================================================================
@@ -1497,17 +1593,21 @@ async function carregarOneDrive(){
     const fid=(await ck.json()).id;
     const meta=await(await fetch(`https://graph.microsoft.com/v1.0/me/drive/items/${fid}?select=name,size,file`,{headers:{Authorization:'Bearer '+msToken}})).json();
     if(!meta.file||meta.size<1000){setSinc('ok','Conectado');return;}
-    // Leitura sem sessão — sessões só são necessárias para escrita
     const rdHdrs={'Authorization':'Bearer '+msToken};
+    // Tenta ler abas — se 501, o arquivo ainda não foi ativado no Excel Online
     const wsResp=await fetch(`https://graph.microsoft.com/v1.0/me/drive/items/${fid}/workbook/worksheets`,{headers:rdHdrs});
     if(!wsResp.ok){setSinc('ok','Conectado');return;}
     const wsJson=await wsResp.json().catch(()=>({}));
     const abas=(wsJson?.value||[]).map(s=>s.name);
     if(!abas.includes(mes)){setSinc('ok','Conectado');return;}
-    const rr=await fetch(`https://graph.microsoft.com/v1.0/me/drive/items/${fid}/workbook/worksheets/${encodeURIComponent(mes)}/usedRange`,{headers:rdHdrs});
+    // Lê via range direto — mais robusto que usedRange
+    const rr=await fetch(`https://graph.microsoft.com/v1.0/me/drive/items/${fid}/workbook/worksheets/${encodeURIComponent(mes)}/range(address='A1:AE500')`,{headers:rdHdrs});
     if(!rr.ok){setSinc('ok','Conectado');return;}
     const rrJson=await rr.json().catch(()=>({}));
-    const rows=rrJson?.values||[];
+    // Filtra linhas vazias a partir do final
+    let allRows=(rrJson?.values||[]);
+    while(allRows.length>1&&(!allRows[allRows.length-1][0]))allRows.pop();
+    const rows=allRows;
     if(rows.length<=1){setSinc('ok','Conectado');return;}
     const novos=[];
     for(let i=1;i<rows.length;i++){
@@ -1599,18 +1699,14 @@ async function carregarPropsOneDrive(){
     const fid=(await ck.json()).id;
     const meta=await(await fetch(`https://graph.microsoft.com/v1.0/me/drive/items/${fid}?select=name,size,file`,{headers:{Authorization:'Bearer '+msToken}})).json();
     if(!meta.file||meta.size<1000)return;
-    // Leitura sem sessão
     const rdHdrsP={'Authorization':'Bearer '+msToken};
-    const wsRespP=await fetch(`https://graph.microsoft.com/v1.0/me/drive/items/${fid}/workbook/worksheets`,{headers:rdHdrsP});
-    if(!wsRespP.ok)return;
-    const wsJsonP=await wsRespP.json().catch(()=>({}));
-    const abas=(wsJsonP?.value||[]).map(s=>s.name);
-    if(!abas.length)return;
-    const aba=abas[0];
-    const rr=await fetch(`https://graph.microsoft.com/v1.0/me/drive/items/${fid}/workbook/worksheets/${encodeURIComponent(aba)}/usedRange`,{headers:rdHdrsP});
+    // Lê aba Clientes diretamente via range — evita chamada a /worksheets que retorna 501
+    const rr=await fetch(`https://graph.microsoft.com/v1.0/me/drive/items/${fid}/workbook/worksheets/Clientes/range(address='A1:J500')`,{headers:rdHdrsP});
     if(!rr.ok)return;
     const rrJson=await rr.json().catch(()=>({}));
-    const rows=rrJson?.values||[];
+    let allRowsP=(rrJson?.values||[]);
+    while(allRowsP.length>1&&(!allRowsP[allRowsP.length-1][0]))allRowsP.pop();
+    const rows=allRowsP;
     if(rows.length<=1)return;
     const props=[];
     for(let i=1;i<rows.length;i++){
@@ -1722,7 +1818,9 @@ async function garantirAba(fileId,mes,tipo){
   }
   const cabMap={
     frt:[['Data','Hora','Motorista','Veiculo','VeiculoNome','Produtor','Municipio','Propriedade','Apelido','Comunidade','Latitude','Longitude','TipoLabel','Tipo','Sacas','Tambores','Arrobas','Renda%','Aproveit%','CargaKg','PesoEstimado_kg','SacasEquiv','Destino','Km','Valor_R$','Observacoes','Status']],
-    prop:[['Propriedade','Apelido','Comunidade','Produtor','Contato','Municipio','Telefone','Latitude','Longitude','Observacoes']]
+    prop:[['Propriedade','Apelido','Comunidade','Produtor','Contato','Municipio','Telefone','Latitude','Longitude','Observacoes']],
+    vei:[['Placa','Nome','Tipo','CapSacas','CapKg','Tara','MotoristaPad','Status','Observacoes']],
+    mot:[['Nome','Telefone','CPF','CNH','Categoria','ValidadeCNH','Status','Observacoes']]
   };
   const cab=cabMap[tipo];
   if(cab){
