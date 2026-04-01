@@ -7,7 +7,33 @@
 <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;500;600&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <style>
-*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+/* SPLASH — primeiro acesso */
+#splash{position:fixed;inset:0;z-index:999;background:var(--cafe);display:flex;align-items:center;justify-content:center;padding:2rem}
+#splash.hidden{display:none}
+.splash-box{background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.12);border-radius:20px;padding:2.5rem 2rem;max-width:420px;width:100%;text-align:center}
+.splash-logo{font-size:52px;margin-bottom:1.25rem}
+.splash-box h1{font-family:'Playfair Display',serif;font-size:26px;color:#fff;margin-bottom:.5rem}
+.splash-box p{font-size:14px;color:rgba(255,255,255,0.6);line-height:1.7;margin-bottom:1.75rem}
+.splash-features{display:flex;flex-direction:column;gap:8px;margin-bottom:1.75rem;text-align:left}
+.splash-feature{display:flex;align-items:center;gap:10px;font-size:13px;color:rgba(255,255,255,0.75);background:rgba(255,255,255,0.05);border-radius:9px;padding:9px 12px}
+.splash-feature span{font-size:18px;flex-shrink:0}
+.btn-splash{width:100%;background:#fff;color:var(--cafe);border:none;border-radius:12px;padding:14px 22px;font-size:15px;font-family:'DM Sans',sans-serif;font-weight:600;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:10px;transition:all .15s}
+.btn-splash:hover{background:var(--cream);transform:translateY(-1px)}
+/* SETUP PROGRESS */
+#setup-overlay{position:fixed;inset:0;z-index:998;background:rgba(26,18,9,0.85);display:none;align-items:center;justify-content:center;padding:2rem;backdrop-filter:blur(6px)}
+#setup-overlay.open{display:flex}
+.setup-box{background:#fff;border-radius:18px;padding:2rem;max-width:380px;width:100%;text-align:center}
+.setup-box h2{font-family:'Playfair Display',serif;font-size:20px;color:var(--cafe);margin-bottom:.5rem}
+.setup-box p{font-size:13px;color:var(--text-mid);margin-bottom:1.5rem;line-height:1.6}
+.setup-steps{display:flex;flex-direction:column;gap:8px;margin-bottom:1.5rem;text-align:left}
+.setup-step{display:flex;align-items:center;gap:10px;font-size:13px;color:var(--text-mid);padding:8px 12px;border-radius:8px;background:var(--cream);transition:all .3s}
+.setup-step.done{background:#E8F5E9;color:#2E7D32}
+.setup-step.active{background:#E3F2FD;color:#1565C0;font-weight:500}
+.setup-step.error{background:#FFEBEE;color:#C62828}
+.setup-step-icon{font-size:16px;flex-shrink:0;width:24px;text-align:center}
+.setup-spinner{display:inline-block;width:16px;height:16px;border:2px solid rgba(21,101,192,0.3);border-top-color:#1565C0;border-radius:50%;animation:spin .7s linear infinite;flex-shrink:0}
+@keyframes spin{to{transform:rotate(360deg)}}
+</style>
 :root{
   --cafe:#3C2A1E;--cafe-mid:#6B4226;--cafe-light:#C8956C;
   --cream:#FAF7F2;--cream-dark:#F0EBE3;--gold:#C9A84C;
@@ -239,6 +265,43 @@ body{font-family:'DM Sans',sans-serif;background:var(--cream);min-height:100vh;c
 </style>
 </head>
 <body>
+
+<!-- SPLASH — primeiro acesso (sem conta conectada) -->
+<div id="splash" class="hidden">
+  <div class="splash-box">
+    <div class="splash-logo">🚛</div>
+    <h1>Gestão de Fretes</h1>
+    <p>Café Vilela — Capitólio, MG<br>Conecte sua conta Microsoft 365 para iniciar. Os arquivos de banco de dados serão criados automaticamente no seu OneDrive.</p>
+    <div class="splash-features">
+      <div class="splash-feature"><span>📦</span>Registro de fretes com cálculo de carga</div>
+      <div class="splash-feature"><span>📍</span>Propriedades com GPS e rota no Maps</div>
+      <div class="splash-feature"><span>🚚</span>Cadastro de veículos e motoristas</div>
+      <div class="splash-feature"><span>☁️</span>Banco de dados no seu OneDrive</div>
+    </div>
+    <button class="btn-splash" onclick="handleMSAuth()">
+      <svg width="18" height="18" viewBox="0 0 21 21"><rect x="1" y="1" width="9" height="9" fill="#f25022"/><rect x="11" y="1" width="9" height="9" fill="#7fba00"/><rect x="1" y="11" width="9" height="9" fill="#00a4ef"/><rect x="11" y="11" width="9" height="9" fill="#ffb900"/></svg>
+      Conectar com Microsoft 365
+    </button>
+  </div>
+</div>
+
+<!-- SETUP — criação automática dos arquivos no OneDrive -->
+<div id="setup-overlay">
+  <div class="setup-box">
+    <div style="font-size:36px;margin-bottom:.75rem">☁️</div>
+    <h2>Configurando banco de dados</h2>
+    <p>Criando os arquivos Excel no seu OneDrive. Isso só acontece uma vez.</p>
+    <div class="setup-steps" id="setup-steps">
+      <div class="setup-step" id="ss-conta"><div class="setup-step-icon">👤</div>Verificando conta Microsoft</div>
+      <div class="setup-step" id="ss-fretes"><div class="setup-step-icon">📊</div>Criando Fretes_<span id="ss-ano"></span>.xlsx</div>
+      <div class="setup-step" id="ss-clientes"><div class="setup-step-icon">📋</div>Criando Clientes_Propriedades.xlsx</div>
+      <div class="setup-step" id="ss-concluido"><div class="setup-step-icon">✅</div>Pronto! Carregando o sistema...</div>
+    </div>
+  </div>
+</div>
+
+
+
 <div class="app">
 
 <!-- HEADER -->
@@ -570,10 +633,10 @@ body{font-family:'DM Sans',sans-serif;background:var(--cream);min-height:100vh;c
         <div class="form-group"><label>Identificação / Modelo</label><input type="text" id="v-nome" placeholder="Ex: Volvo FH · Truck"></div>
         <div class="form-group"><label>Tipo</label>
           <select id="v-tipo">
-            <option value="Truck">Truck</option><option value="Bitruck">Bitruck</option>
-            <option value="Carreta">Carreta</option><option value="Toco">Toco</option>
+            <option value="Toco">Toco</option>
+            <option value="Truck">Truck</option>
+            <option value="3/4">3/4</option>
             <option value="Caminhonete">Caminhonete</option>
-            <option value="Utilitário">Utilitário</option><option value="Pickup">Pickup</option>
           </select>
         </div>
         <div class="form-group"><label>Capacidade máxima (sacas 60 kg)</label><input type="number" id="v-cap-sacas" placeholder="Ex: 250" min="1"></div>
@@ -694,16 +757,17 @@ function showScreen(name, btn) {
   document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
   document.getElementById('screen-'+name).classList.add('active');
   if(btn) btn.classList.add('active');
-  if(name==='agenda')      { renderAgenda(); if(msToken) carregarOneDrive().catch(()=>{}); }
-  if(name==='propriedades'){ renderProps(); if(msToken) carregarPropsOneDrive().catch(()=>{}); }
-  if(name==='veiculos')    { renderVeiculos(); if(msToken) carregarVeiculosMotoristasOneDrive().catch(()=>{}); }
-  if(name==='motoristas')  { renderMotoristas(); if(msToken) carregarVeiculosMotoristasOneDrive().catch(()=>{}); }
-  if(name==='veiculos')    { renderVeiculos(); }
-  if(name==='motoristas')  { renderMotoristas(); }
+  // Renderiza com dados já em memória (carregados do OneDrive na conexão)
+  if(name==='agenda')      renderAgenda();
+  if(name==='propriedades') renderProps();
+  if(name==='veiculos')    renderVeiculos();
+  if(name==='motoristas')  renderMotoristas();
 }
 
 function updateBadges() {
-  document.getElementById('badge-hist').textContent = dadosFretes.length;
+  // Badge de agendamentos: conta apenas os não cancelados
+  const freteAtivos = dadosFretes.filter(f => f.status !== 'Cancelado');
+  document.getElementById('badge-hist').textContent = freteAtivos.length;
   document.getElementById('badge-prop').textContent = dadosPropriedades.length;
   document.getElementById('badge-vei').textContent  = dadosVeiculos.length;
   document.getElementById('badge-mot').textContent  = dadosMotoristas.length;
@@ -749,14 +813,147 @@ function silentRefresh(){const f=document.createElement('iframe');f.style.displa
 function checkToken(){
   const p=new URLSearchParams(window.location.hash.substring(1));
   const t=p.get('access_token'),exp=p.get('expires_in');
-  if(t){msToken=t;salvarToken(t,exp);agendarRefresh(exp);window.history.replaceState({},' ',' ');onConnected();carregarOneDrive().catch(()=>{});carregarPropsOneDrive().catch(()=>{});carregarVeiculosMotoristasOneDrive().catch(()=>{});return;}
+  if(t){
+    msToken=t;salvarToken(t,exp);agendarRefresh(exp);
+    window.history.replaceState({},' ',' ');
+    // Verifica se é primeiro acesso (setup necessário)
+    const jaConfigurado=localStorage.getItem('frt_setup_ok');
+    if(!jaConfigurado) iniciarSetup().then(()=>onConnected()).catch(()=>onConnected());
+    else { onConnected(); carregarDados(); }
+    return;
+  }
   const saved=tokenSalvo();
-  if(saved){msToken=saved;fetch('https://graph.microsoft.com/v1.0/me',{headers:{Authorization:'Bearer '+saved}}).then(r=>{if(r.ok){const rem=Math.max(0,(parseInt(localStorage.getItem(TOKEN_EXP)||'0')-Date.now())/1000);agendarRefresh(rem);onConnected();}else{msToken=null;localStorage.removeItem(TOKEN_KEY);localStorage.removeItem(TOKEN_EXP);setDesconectado();}}).catch(()=>{msToken=saved;onConnected();});}
-  else setDesconectado();
+  if(saved){
+    msToken=saved;
+    fetch('https://graph.microsoft.com/v1.0/me',{headers:{Authorization:'Bearer '+saved}})
+      .then(r=>{
+        if(r.ok){
+          const rem=Math.max(0,(parseInt(localStorage.getItem(TOKEN_EXP)||'0')-Date.now())/1000);
+          agendarRefresh(rem);onConnected();carregarDados();
+        } else {
+          msToken=null;localStorage.removeItem(TOKEN_KEY);localStorage.removeItem(TOKEN_EXP);
+          setDesconectado();
+        }
+      }).catch(()=>{msToken=saved;onConnected();carregarDados();});
+  } else {
+    setDesconectado();
+  }
 }
-function handleMSAuth(){if(msToken){if(!confirm('Deseja desconectar a conta Microsoft?'))return;localStorage.removeItem(TOKEN_KEY);localStorage.removeItem(TOKEN_EXP);if(refreshTimer)clearTimeout(refreshTimer);msToken=null;setDesconectado();toastOk('Desconectado.');return;}window.location.href=`https://login.microsoftonline.com/${tenantId}/oauth2/v2.0/authorize?client_id=${clientId}&response_type=token&redirect_uri=${encodeURIComponent(REDIRECT_URI)}&scope=${encodeURIComponent(MS_SCOPES)}&response_mode=fragment&login_hint=${encodeURIComponent(LOGIN_HINT)}&prompt=login`;}
-function onConnected(){const b=document.getElementById('btn-ms');b.className='btn-ms connected';b.innerHTML='<svg width="14" height="14" viewBox="0 0 21 21"><rect x="1" y="1" width="9" height="9" fill="#f25022"/><rect x="11" y="1" width="9" height="9" fill="#7fba00"/><rect x="1" y="11" width="9" height="9" fill="#00a4ef"/><rect x="11" y="11" width="9" height="9" fill="#ffb900"/></svg> Conectado';const s=document.getElementById('cfg-status');if(s){s.textContent='Conectado ao Microsoft 365 ✓';s.style.color='#2E7D32';}setSinc('ok','Conectado');document.getElementById('form-lock').style.display='none';}
-function setDesconectado(){const b=document.getElementById('btn-ms');b.className='btn-ms';b.innerHTML='<svg width="14" height="14" viewBox="0 0 21 21"><rect x="1" y="1" width="9" height="9" fill="#f25022"/><rect x="11" y="1" width="9" height="9" fill="#7fba00"/><rect x="1" y="11" width="9" height="9" fill="#00a4ef"/><rect x="11" y="11" width="9" height="9" fill="#ffb900"/></svg> Conectar Microsoft';const s=document.getElementById('cfg-status');if(s){s.textContent='Desconectado.';s.style.color='#C62828';}setSinc('error','Desconectado');document.getElementById('form-lock').style.display='flex';}
+
+// Carrega dados do OneDrive — sempre chamado ao conectar
+// Prioridade: OneDrive é a fonte de verdade. Dados locais não-sincronizados são preservados.
+async function carregarDados(){
+  // Mostra indicador de carregamento
+  setSinc('pending','Carregando dados...');
+  try {
+    await Promise.allSettled([
+      carregarOneDrive(),
+      carregarPropsOneDrive(),
+      carregarVeiculosMotoristasOneDrive()
+    ]);
+    setSinc('ok','Dados carregados');
+  } catch(e) {
+    setSinc('ok','Conectado');
+  }
+  // Renderiza tudo após carregar
+  renderAgenda();
+  renderProps();
+  renderVeiculos();
+  renderMotoristas();
+  updateBadges();
+  updateSelects();
+}
+
+// Setup automático: cria os arquivos Excel no OneDrive na primeira vez
+async function iniciarSetup(){
+  document.getElementById('setup-overlay').classList.add('open');
+  document.getElementById('splash').classList.add('hidden');
+  document.getElementById('ss-ano').textContent = new Date().getFullYear();
+  const raiz=odPath.normalize('NFD').replace(/[\u0300-\u036f]/g,'');
+
+  function setStep(id, estado, icone){
+    const el=document.getElementById(id);
+    el.className='setup-step '+estado;
+    el.querySelector('.setup-step-icon').innerHTML=
+      estado==='active'?'<div class="setup-spinner"></div>':icone;
+  }
+
+  try{
+    // Passo 1: verificar conta
+    setStep('ss-conta','active','👤');
+    await fetch('https://graph.microsoft.com/v1.0/me',{headers:{Authorization:'Bearer '+msToken}});
+    setStep('ss-conta','done','✅');
+    await delay(400);
+
+    // Passo 2: criar Fretes_AAAA.xlsx
+    setStep('ss-fretes','active','📊');
+    const ano=new Date().getFullYear();
+    const mes=MESES[new Date().getMonth()];
+    const fidFrt=await getOrCreateExcel(`${raiz}/Fretes_${ano}.xlsx`);
+    const cabFrt=['Data','Hora','Motorista','Veiculo','VeiculoNome','Produtor','Municipio','Propriedade','Apelido','Comunidade','Latitude','Longitude','TipoLabel','Tipo','Sacas','Tambores','Arrobas','Renda%','Aproveit%','CargaKg','PesoEstimado_kg','SacasEquiv','Destino','Km','Valor_R$','Observacoes','Status'];
+    await garantirAba(fidFrt,mes,cabFrt);
+    setStep('ss-fretes','done','✅');
+    await delay(400);
+
+    // Passo 3: criar Clientes_Propriedades.xlsx com 3 abas
+    setStep('ss-clientes','active','📋');
+    const fidCli=await getOrCreateExcel(`${raiz}/Clientes_Propriedades.xlsx`);
+    await garantirAba(fidCli,'Clientes',['Propriedade','Apelido','Comunidade','Produtor','Contato','Municipio','Telefone','Latitude','Longitude','Observacoes']);
+    await garantirAba(fidCli,'Veiculos',['Placa','Nome','Tipo','CapSacas','CapKg','Tara','MotoristaPad','Status','Observacoes']);
+    await garantirAba(fidCli,'Motoristas',['Nome','Telefone','CPF','CNH','Categoria','ValidadeCNH','Status','Observacoes']);
+    setStep('ss-clientes','done','✅');
+    await delay(400);
+
+    // Concluído
+    setStep('ss-concluido','done','✅');
+    localStorage.setItem('frt_setup_ok','1');
+    await delay(1200);
+  } catch(e){
+    console.warn('Setup erro:',e);
+    localStorage.setItem('frt_setup_ok','1');
+  } finally {
+    document.getElementById('setup-overlay').classList.remove('open');
+    // Carrega dados do OneDrive logo após o setup
+    carregarDados().catch(()=>{});
+  }
+}
+
+function handleMSAuth(){
+  if(msToken){
+    if(!confirm('Deseja desconectar a conta Microsoft?'))return;
+    localStorage.removeItem(TOKEN_KEY);localStorage.removeItem(TOKEN_EXP);
+    localStorage.removeItem('frt_setup_ok');
+    if(refreshTimer)clearTimeout(refreshTimer);
+    msToken=null;setDesconectado();toastOk('Desconectado.');
+    return;
+  }
+  window.location.href=`https://login.microsoftonline.com/${tenantId}/oauth2/v2.0/authorize?client_id=${clientId}&response_type=token&redirect_uri=${encodeURIComponent(REDIRECT_URI)}&scope=${encodeURIComponent(MS_SCOPES)}&response_mode=fragment&login_hint=${encodeURIComponent(LOGIN_HINT)}&prompt=login`;
+}
+
+function onConnected(){
+  document.getElementById('splash').classList.add('hidden');
+  const b=document.getElementById('btn-ms');
+  b.className='btn-ms connected';
+  b.innerHTML='<svg width="14" height="14" viewBox="0 0 21 21"><rect x="1" y="1" width="9" height="9" fill="#f25022"/><rect x="11" y="1" width="9" height="9" fill="#7fba00"/><rect x="1" y="11" width="9" height="9" fill="#00a4ef"/><rect x="11" y="11" width="9" height="9" fill="#ffb900"/></svg> Conectado';
+  const s=document.getElementById('cfg-status');if(s){s.textContent='Conectado ao Microsoft 365 ✓';s.style.color='#2E7D32';}
+  setSinc('ok','Conectado');
+  document.getElementById('form-lock').style.display='none';
+}
+
+function setDesconectado(){
+  // Mostra splash se nunca conectou, ou só desbloqueio parcial se já conectou antes
+  const jaUsou=localStorage.getItem('frt_setup_ok');
+  if(!jaUsou){
+    document.getElementById('splash').classList.remove('hidden');
+  }
+  const b=document.getElementById('btn-ms');
+  b.className='btn-ms';
+  b.innerHTML='<svg width="14" height="14" viewBox="0 0 21 21"><rect x="1" y="1" width="9" height="9" fill="#f25022"/><rect x="11" y="1" width="9" height="9" fill="#7fba00"/><rect x="1" y="11" width="9" height="9" fill="#00a4ef"/><rect x="11" y="11" width="9" height="9" fill="#ffb900"/></svg> Conectar Microsoft';
+  const s=document.getElementById('cfg-status');if(s){s.textContent='Desconectado.';s.style.color='#C62828';}
+  setSinc('error','Desconectado');
+  document.getElementById('form-lock').style.display='flex';
+}
+
 function setSinc(tipo,msg){const w=document.getElementById('sync-wrap'),d=document.getElementById('sync-dot'),t=document.getElementById('sync-txt');if(w)w.style.display='flex';if(d)d.className='sync-dot '+tipo;if(t)t.textContent=msg;}
 
 // =====================================================================
@@ -1057,8 +1254,12 @@ function setView(v){
 }
 
 function renderSummary(){
-  const total=dadosFretes.length,sacas=dadosFretes.reduce((s,f)=>s+(f.sacasEquiv||f.sacas||0),0),
-        valor=dadosFretes.reduce((s,f)=>s+(f.valor||0),0),em=dadosFretes.filter(f=>f.status==='Em Rota').length;
+  // Exclui cancelados de todos os totais
+  const ativos = dadosFretes.filter(f => f.status !== 'Cancelado');
+  const total = ativos.length;
+  const sacas = ativos.reduce((s,f)=>s+(f.sacasEquiv||f.sacas||0),0);
+  const valor = ativos.reduce((s,f)=>s+(f.valor||0),0);
+  const em = ativos.filter(f=>f.status==='Em Rota').length;
   document.getElementById('summary-row').innerHTML=`
     <div class="summary-card"><div class="summary-lbl">Total</div><div class="summary-val">${total}</div><div class="summary-sub">fretes no mês</div></div>
     <div class="summary-card green"><div class="summary-lbl">Sacas Est.</div><div class="summary-val">${sacas.toLocaleString('pt-BR',{maximumFractionDigits:0})}</div><div class="summary-sub">sc beneficiadas</div></div>
@@ -1484,48 +1685,6 @@ function salvarMotorista(){
   if(msToken) sincMotorista(m);
 }
 
-// =====================================================================
-// ONEDRIVE — VEÍCULOS E MOTORISTAS
-// =====================================================================
-async function sincVeiculo(v){
-  if(!msToken)return;
-  try{
-    const raiz=odPath.normalize('NFD').replace(/[\u0300-\u036f]/g,'');
-    const fid=await getOrCreateExcel(`${raiz}/Clientes_Propriedades.xlsx`);
-    await garantirAba(fid,'Veiculos','vei');
-    const linha=[v.placa||'',v.nome||'',v.tipo||'',v.capSacas||0,v.capKg||0,v.tara||0,v.motoristaPad||'',v.status||'',v.obs||''];
-    const baseHdrs={'Authorization':'Bearer '+msToken,'Content-Type':'application/json'};
-    const sessR=await fetch(`https://graph.microsoft.com/v1.0/me/drive/items/${fid}/workbook/createSession`,
-      {method:'POST',headers:baseHdrs,body:JSON.stringify({persistChanges:true})}).catch(()=>({ok:false}));
-    const sessId=sessR.ok?(await sessR.json().catch(()=>({}))).id:'';
-    const hdrs={...baseHdrs,...(sessId?{'workbook-session-id':sessId}:{})};
-    const next=await getNextRow(fid,'Veiculos',hdrs);
-    await fetch(`https://graph.microsoft.com/v1.0/me/drive/items/${fid}/workbook/worksheets/Veiculos/range(address='A${next}:I${next}')`,
-      {method:'PATCH',headers:hdrs,body:JSON.stringify({values:[linha]})});
-    if(sessId) fetch(`https://graph.microsoft.com/v1.0/me/drive/items/${fid}/workbook/closeSession`,{method:'POST',headers:hdrs,body:'{}'}).catch(()=>{});
-    v.sinc=true; salvarVeiculosLocal(); toastOk('Veículo sincronizado ✓');
-  }catch(e){toastErr('Erro sinc. veículo: '+(e.message||''));}
-}
-
-async function sincMotorista(m){
-  if(!msToken)return;
-  try{
-    const raiz=odPath.normalize('NFD').replace(/[\u0300-\u036f]/g,'');
-    const fid=await getOrCreateExcel(`${raiz}/Clientes_Propriedades.xlsx`);
-    await garantirAba(fid,'Motoristas','mot');
-    const linha=[m.nome||'',m.tel||'',m.cpf||'',m.cnh||'',m.cat||'',m.vcnh||'',m.status||'',m.obs||''];
-    const baseHdrs={'Authorization':'Bearer '+msToken,'Content-Type':'application/json'};
-    const sessR=await fetch(`https://graph.microsoft.com/v1.0/me/drive/items/${fid}/workbook/createSession`,
-      {method:'POST',headers:baseHdrs,body:JSON.stringify({persistChanges:true})}).catch(()=>({ok:false}));
-    const sessId=sessR.ok?(await sessR.json().catch(()=>({}))).id:'';
-    const hdrs={...baseHdrs,...(sessId?{'workbook-session-id':sessId}:{})};
-    const next=await getNextRow(fid,'Motoristas',hdrs);
-    await fetch(`https://graph.microsoft.com/v1.0/me/drive/items/${fid}/workbook/worksheets/Motoristas/range(address='A${next}:H${next}')`,
-      {method:'PATCH',headers:hdrs,body:JSON.stringify({values:[linha]})});
-    if(sessId) fetch(`https://graph.microsoft.com/v1.0/me/drive/items/${fid}/workbook/closeSession`,{method:'POST',headers:hdrs,body:'{}'}).catch(()=>{});
-    m.sinc=true; salvarMotoristasLocal(); toastOk('Motorista sincronizado ✓');
-  }catch(e){toastErr('Erro sinc. motorista: '+(e.message||''));}
-}
 
 async function carregarVeiculosMotoristasOneDrive(){
   if(!msToken)return;
@@ -1651,38 +1810,6 @@ async function sincFrete(reg){
   }catch(e){setSinc('error','Erro');toastErr('Erro: '+(e.message||''));}
 }
 
-async function appendFrtExcel(reg){
-  const d=new Date(reg.data+'T12:00:00'),ano=d.getFullYear(),mes=MESES[d.getMonth()];
-  const raiz=odPath.normalize('NFD').replace(/[\u0300-\u036f]/g,'');
-  const fid=await getOrCreateExcel(`${raiz}/Fretes_${ano}.xlsx`);
-  await garantirAba(fid,mes,'frt');
-  const df=d.toLocaleDateString('pt-BR');
-  const linha=[
-    df, reg.hora||'', reg.motorista||'', reg.veiculo||'', reg.veiculoNome||'',
-    reg.produtor||'', reg.municipio||'', reg.propNome||'', reg.propApelido||'', reg.propComunidade||'',
-    reg.propLat||'', reg.propLng||'', reg.tipoLabel||'', reg.tipo||'',
-    reg.sacas||0, reg.tambores||0, reg.arrobas||0, reg.renda||0, reg.aproveit||0,
-    reg.cargaKg||0, reg.pesoEstimado||0, reg.sacasEquiv||0,
-    reg.destino||'', reg.km||0, reg.valor||0,
-    reg.obs||'', reg.status||''
-  ];
-  // Sessão persistente para escrita
-  const baseHdrs={'Authorization':'Bearer '+msToken,'Content-Type':'application/json'};
-  const sessR=await fetch(`https://graph.microsoft.com/v1.0/me/drive/items/${fid}/workbook/createSession`,
-    {method:'POST',headers:baseHdrs,body:JSON.stringify({persistChanges:true})}).catch(()=>({ok:false}));
-  const sessId=sessR.ok?(await sessR.json().catch(()=>({}))).id:'';
-  const hdrs={...baseHdrs,...(sessId?{'workbook-session-id':sessId}:{})};
-  await delay(1000);
-  const next=await getNextRow(fid,mes,hdrs);
-  // 27 colunas: A→AA
-  const wr=await fetch(
-    `https://graph.microsoft.com/v1.0/me/drive/items/${fid}/workbook/worksheets/${encodeURIComponent(mes)}/range(address='A${next}:AA${next}')`,
-    {method:'PATCH',headers:hdrs,body:JSON.stringify({values:[linha]})}
-  );
-  if(sessId) fetch(`https://graph.microsoft.com/v1.0/me/drive/items/${fid}/workbook/closeSession`,{method:'POST',headers:hdrs,body:'{}'}).catch(()=>{});
-  if(!wr.ok){const e=await wr.json().catch(()=>({}));throw new Error('write: '+wr.status+' '+(e.error?.message||''));}
-}
-
 // ONEDRIVE — PROPRIEDADES
 async function carregarPropsOneDrive(){
   if(!msToken)return;
@@ -1723,104 +1850,119 @@ async function carregarPropsOneDrive(){
   }catch(e){console.warn('Erro carregar props:',e);}
 }
 
-async function sincPropriedade(prop){
-  if(!msToken)return;
-  try{
-    const raiz=odPath.normalize('NFD').replace(/[\u0300-\u036f]/g,'');
-    const fid=await getOrCreateExcel(`${raiz}/Clientes_Propriedades.xlsx`);
-    await garantirAba(fid,'Clientes','prop');
-    const linha=[
-      prop.nome||'',prop.apelido||'',prop.comunidade||'',prop.produtor||'',
-      prop.contato||'',prop.municipio||'',prop.telefone||'',
-      prop.lat||'',prop.lng||'',prop.obs||''
-    ];
-    const baseHdrs={'Authorization':'Bearer '+msToken,'Content-Type':'application/json'};
-    const sessR=await fetch(`https://graph.microsoft.com/v1.0/me/drive/items/${fid}/workbook/createSession`,
-      {method:'POST',headers:baseHdrs,body:JSON.stringify({persistChanges:true})}).catch(()=>({ok:false}));
-    const sessId=sessR.ok?(await sessR.json().catch(()=>({}))).id:'';
-    const hdrs={...baseHdrs,...(sessId?{'workbook-session-id':sessId}:{})};
-    await delay(1000);
-    const next=await getNextRow(fid,'Clientes',hdrs);
-    await fetch(`https://graph.microsoft.com/v1.0/me/drive/items/${fid}/workbook/worksheets/Clientes/range(address='A${next}:J${next}')`,
-      {method:'PATCH',headers:hdrs,body:JSON.stringify({values:[linha]})});
-    if(sessId) fetch(`https://graph.microsoft.com/v1.0/me/drive/items/${fid}/workbook/closeSession`,{method:'POST',headers:hdrs,body:'{}'}).catch(()=>{});
-    prop.sinc=true;salvarPropsLocal();toastOk('Propriedade sincronizada ✓');
-  }catch(e){toastErr('Erro sinc. prop: '+(e.message||''));}
-}
+// =====================================================================
+// EXCEL WRITE — Workbook API (mesma arquitetura do classificação-café)
+// =====================================================================
 
-// getNextRow — lê coluna A para encontrar próxima linha vazia (sem depender de usedRange)
-async function getNextRow(fileId, worksheetName, hdrs){
-  try{
-    const r=await fetch(
-      `https://graph.microsoft.com/v1.0/me/drive/items/${fileId}/workbook/worksheets/${encodeURIComponent(worksheetName)}/range(address='A1:A500')`,
-      {headers:hdrs}
-    );
-    if(!r.ok) return 2;
-    const d=await r.json().catch(()=>({}));
-    const vals=d?.values||[];
-    for(let i=1;i<vals.length;i++){
-      if(!vals[i][0]||vals[i][0]==='') return i+1;
-    }
-    return vals.length+1;
-  }catch(e){ return 2; }
-}
+// Template XLSX mínimo válido — idêntico ao usado no classificação-café (comprovado)
+const XLSX_TMPL='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';
 
-// EXCEL HELPERS
-const XLSX_MIN='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';
+function b64toAb(b64){const r=atob(b64),u=new Uint8Array(r.length);for(let i=0;i<r.length;i++)u[i]=r.charCodeAt(i);return u.buffer;}
 
 async function getOrCreateExcel(path){
   const enc=path.split('/').map(p=>encodeURIComponent(p)).join('/');
   const ck=await fetch(`https://graph.microsoft.com/v1.0/me/drive/root:/${enc}`,{headers:{Authorization:'Bearer '+msToken}});
   if(ck.ok)return(await ck.json()).id;
-  function b64ab(b){const r=atob(b),u=new Uint8Array(r.length);for(let i=0;i<r.length;i++)u[i]=r.charCodeAt(i);return u.buffer;}
-  const cr=await fetch(`https://graph.microsoft.com/v1.0/me/drive/root:/${enc}:/content`,{method:'PUT',headers:{Authorization:'Bearer '+msToken,'Content-Type':'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'},body:b64ab(XLSX_MIN)});
+  const cr=await fetch(`https://graph.microsoft.com/v1.0/me/drive/root:/${enc}:/content`,{
+    method:'PUT',
+    headers:{Authorization:'Bearer '+msToken,'Content-Type':'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'},
+    body:b64toAb(XLSX_TMPL)
+  });
   if(!cr.ok){const e=await cr.json().catch(()=>({}));throw new Error('Criar Excel: '+(e.error?.message||cr.status));}
-  const d=await cr.json();await delay(4000);return d.id;
+  const d=await cr.json();
+  await delay(4000); // aguarda indexação no OneDrive
+  return d.id;
 }
 
-async function garantirAba(fileId,mes,tipo){
+async function garantirAba(fileId, nomeAba, cabecalho){
   await delay(2000);
-  // Abre sessão persistente para escrita — resolve 501 nos endpoints workbook
-  const baseHdrs={'Authorization':'Bearer '+msToken,'Content-Type':'application/json'};
-  const sessR=await fetch(`https://graph.microsoft.com/v1.0/me/drive/items/${fileId}/workbook/createSession`,
-    {method:'POST',headers:baseHdrs,body:JSON.stringify({persistChanges:true})}).catch(()=>({ok:false}));
-  const sessId=sessR.ok?(await sessR.json().catch(()=>({}))).id:'';
-  const hdrs={...baseHdrs,...(sessId?{'workbook-session-id':sessId}:{})};
-
+  const hdrs={'Authorization':'Bearer '+msToken,'Content-Type':'application/json'};
+  // Lista abas existentes
   const r=await fetch(`https://graph.microsoft.com/v1.0/me/drive/items/${fileId}/workbook/worksheets`,{headers:hdrs});
-  if(!r.ok){
-    if(sessId)fetch(`https://graph.microsoft.com/v1.0/me/drive/items/${fileId}/workbook/closeSession`,{method:'POST',headers:hdrs,body:'{}'}).catch(()=>{});
-    const e=await r.json().catch(()=>({}));throw new Error('Listar abas: '+r.status);
-  }
-  const abasData=await r.json().catch(()=>({}));
-  const abas=(abasData?.value||[]).map(s=>s.name);
-  if(!abas.includes(mes)){
-    const cr=await fetch(`https://graph.microsoft.com/v1.0/me/drive/items/${fileId}/workbook/worksheets`,{method:'POST',headers:hdrs,body:JSON.stringify({name:mes})});
-    if(!cr.ok){
-      if(sessId)fetch(`https://graph.microsoft.com/v1.0/me/drive/items/${fileId}/workbook/closeSession`,{method:'POST',headers:hdrs,body:'{}'}).catch(()=>{});
-      const e=await cr.json().catch(()=>({}));throw new Error('Criar aba: '+cr.status);
-    }
+  if(!r.ok){const e=await r.json().catch(()=>({}));throw new Error('Listar abas: '+r.status+' '+(e.error?.message||''));}
+  const abas=(await r.json()).value.map(s=>s.name);
+  // Cria a aba se não existir
+  if(!abas.includes(nomeAba)){
+    const cr=await fetch(`https://graph.microsoft.com/v1.0/me/drive/items/${fileId}/workbook/worksheets`,
+      {method:'POST',headers:hdrs,body:JSON.stringify({name:nomeAba})});
+    if(!cr.ok){const e=await cr.json().catch(()=>({}));throw new Error('Criar aba: '+cr.status+' '+(e.error?.message||''));}
     await delay(3000);
   }
-  const cabMap={
-    frt:[['Data','Hora','Motorista','Veiculo','VeiculoNome','Produtor','Municipio','Propriedade','Apelido','Comunidade','Latitude','Longitude','TipoLabel','Tipo','Sacas','Tambores','Arrobas','Renda%','Aproveit%','CargaKg','PesoEstimado_kg','SacasEquiv','Destino','Km','Valor_R$','Observacoes','Status']],
-    prop:[['Propriedade','Apelido','Comunidade','Produtor','Contato','Municipio','Telefone','Latitude','Longitude','Observacoes']],
-    vei:[['Placa','Nome','Tipo','CapSacas','CapKg','Tara','MotoristaPad','Status','Observacoes']],
-    mot:[['Nome','Telefone','CPF','CNH','Categoria','ValidadeCNH','Status','Observacoes']]
-  };
-  const cab=cabMap[tipo];
-  if(cab){
-    await delay(1000);
-    const ck=await fetch(`https://graph.microsoft.com/v1.0/me/drive/items/${fileId}/workbook/worksheets/${encodeURIComponent(mes)}/range(address='A1')`,{headers:hdrs});
-    const hd=await ck.json().catch(()=>({values:[['']]}));
-    if(!hd.values?.[0]?.[0]){
-      const cols=cab[0].length,lc=cols<=26?String.fromCharCode(64+cols):'A'+String.fromCharCode(64+cols-26);
-      await fetch(`https://graph.microsoft.com/v1.0/me/drive/items/${fileId}/workbook/worksheets/${encodeURIComponent(mes)}/range(address='A1:${lc}1')`,{method:'PATCH',headers:hdrs,body:JSON.stringify({values:cab})});
-      await delay(1500);
-    }
+  // Insere cabeçalho se a célula A1 estiver vazia
+  await delay(1000);
+  const ck=await fetch(`https://graph.microsoft.com/v1.0/me/drive/items/${fileId}/workbook/worksheets/${encodeURIComponent(nomeAba)}/range(address='A1')`,{headers:hdrs});
+  const hd=await ck.json().catch(()=>({values:[['']]}));
+  if(!hd.values?.[0]?.[0]){
+    const cols=cabecalho.length;
+    const lc=cols<=26?String.fromCharCode(64+cols):'A'+String.fromCharCode(64+cols-26);
+    await fetch(`https://graph.microsoft.com/v1.0/me/drive/items/${fileId}/workbook/worksheets/${encodeURIComponent(nomeAba)}/range(address='A1:${lc}1')`,
+      {method:'PATCH',headers:hdrs,body:JSON.stringify({values:[cabecalho]})});
+    await delay(1500);
   }
-  // Fecha sessão
-  if(sessId) fetch(`https://graph.microsoft.com/v1.0/me/drive/items/${fileId}/workbook/closeSession`,{method:'POST',headers:hdrs,body:'{}'}).catch(()=>{});
+}
+
+async function escreverLinha(fileId, nomeAba, linha){
+  const hdrs={'Authorization':'Bearer '+msToken,'Content-Type':'application/json'};
+  await delay(1000);
+  // usedRange para descobrir próxima linha disponível
+  const ur=await fetch(`https://graph.microsoft.com/v1.0/me/drive/items/${fileId}/workbook/worksheets/${encodeURIComponent(nomeAba)}/usedRange`,{headers:hdrs});
+  if(!ur.ok){const e=await ur.json().catch(()=>({}));throw new Error('usedRange: '+ur.status+' '+(e.error?.message||''));}
+  const nextRow=(await ur.json()).rowCount+1;
+  const cols=linha.length;
+  const lc=cols<=26?String.fromCharCode(64+cols):'A'+String.fromCharCode(64+cols-26);
+  const wr=await fetch(`https://graph.microsoft.com/v1.0/me/drive/items/${fileId}/workbook/worksheets/${encodeURIComponent(nomeAba)}/range(address='A${nextRow}:${lc}${nextRow}')`,
+    {method:'PATCH',headers:hdrs,body:JSON.stringify({values:[linha]})});
+  if(!wr.ok){const e=await wr.json().catch(()=>({}));throw new Error('Escrever linha: '+wr.status+' '+(e.error?.message||''));}
+}
+
+async function appendFrtExcel(reg){
+  const d=new Date(reg.data+'T12:00:00'),ano=d.getFullYear(),mes=MESES[d.getMonth()];
+  const raiz=odPath.normalize('NFD').replace(/[\u0300-\u036f]/g,'');
+  const fid=await getOrCreateExcel(`${raiz}/Fretes_${ano}.xlsx`);
+  const cab=['Data','Hora','Motorista','Veiculo','VeiculoNome','Produtor','Municipio','Propriedade','Apelido','Comunidade','Latitude','Longitude','TipoLabel','Tipo','Sacas','Tambores','Arrobas','Renda%','Aproveit%','CargaKg','PesoEstimado_kg','SacasEquiv','Destino','Km','Valor_R$','Observacoes','Status'];
+  await garantirAba(fid,mes,cab);
+  const df=d.toLocaleDateString('pt-BR');
+  const linha=[df,reg.hora||'',reg.motorista||'',reg.veiculo||'',reg.veiculoNome||'',reg.produtor||'',reg.municipio||'',reg.propNome||'',reg.propApelido||'',reg.propComunidade||'',reg.propLat||'',reg.propLng||'',reg.tipoLabel||'',reg.tipo||'',reg.sacas||0,reg.tambores||0,reg.arrobas||0,reg.renda||0,reg.aproveit||0,reg.cargaKg||0,reg.pesoEstimado||0,reg.sacasEquiv||0,reg.destino||'',reg.km||0,reg.valor||0,reg.obs||'',reg.status||''];
+  await escreverLinha(fid,mes,linha);
+}
+
+async function sincPropriedade(prop){
+  if(!msToken)return;
+  try{
+    const raiz=odPath.normalize('NFD').replace(/[\u0300-\u036f]/g,'');
+    const fid=await getOrCreateExcel(`${raiz}/Clientes_Propriedades.xlsx`);
+    const cab=['Propriedade','Apelido','Comunidade','Produtor','Contato','Municipio','Telefone','Latitude','Longitude','Observacoes'];
+    await garantirAba(fid,'Clientes',cab);
+    const linha=[prop.nome||'',prop.apelido||'',prop.comunidade||'',prop.produtor||'',prop.contato||'',prop.municipio||'',prop.telefone||'',prop.lat||'',prop.lng||'',prop.obs||''];
+    await escreverLinha(fid,'Clientes',linha);
+    prop.sinc=true;salvarPropsLocal();toastOk('Propriedade sincronizada ✓');
+  }catch(e){toastErr('Erro sinc. prop: '+(e.message||''));}
+}
+
+async function sincVeiculo(v){
+  if(!msToken)return;
+  try{
+    const raiz=odPath.normalize('NFD').replace(/[\u0300-\u036f]/g,'');
+    const fid=await getOrCreateExcel(`${raiz}/Clientes_Propriedades.xlsx`);
+    const cab=['Placa','Nome','Tipo','CapSacas','CapKg','Tara','MotoristaPad','Status','Observacoes'];
+    await garantirAba(fid,'Veiculos',cab);
+    const linha=[v.placa||'',v.nome||'',v.tipo||'',v.capSacas||0,v.capKg||0,v.tara||0,v.motoristaPad||'',v.status||'',v.obs||''];
+    await escreverLinha(fid,'Veiculos',linha);
+    v.sinc=true;salvarVeiculosLocal();toastOk('Veículo sincronizado ✓');
+  }catch(e){toastErr('Erro sinc. veículo: '+(e.message||''));}
+}
+
+async function sincMotorista(m){
+  if(!msToken)return;
+  try{
+    const raiz=odPath.normalize('NFD').replace(/[\u0300-\u036f]/g,'');
+    const fid=await getOrCreateExcel(`${raiz}/Clientes_Propriedades.xlsx`);
+    const cab=['Nome','Telefone','CPF','CNH','Categoria','ValidadeCNH','Status','Observacoes'];
+    await garantirAba(fid,'Motoristas',cab);
+    const linha=[m.nome||'',m.tel||'',m.cpf||'',m.cnh||'',m.cat||'',m.vcnh||'',m.status||'',m.obs||''];
+    await escreverLinha(fid,'Motoristas',linha);
+    m.sinc=true;salvarMotoristasLocal();toastOk('Motorista sincronizado ✓');
+  }catch(e){toastErr('Erro sinc. motorista: '+(e.message||''));}
 }
 
 // UTILS
