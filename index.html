@@ -5,6 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <title>Gestão de Fretes — Café Vilela</title>
 <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;500;600&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <style>
 *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
 :root{
@@ -1534,41 +1535,32 @@ async function carregarVeiculosMotoristasOneDrive(){
     const ck=await fetch(`https://graph.microsoft.com/v1.0/me/drive/root:/${enc}`,{headers:{Authorization:'Bearer '+msToken}});
     if(!ck.ok)return;
     const fid=(await ck.json()).id;
-    const hdrs={'Authorization':'Bearer '+msToken};
 
     // Carrega Veículos
-    const rvei=await fetch(`https://graph.microsoft.com/v1.0/me/drive/items/${fid}/workbook/worksheets/Veiculos/range(address='A1:I500')`,{headers:hdrs});
-    if(rvei.ok){
-      let rowsV=((await rvei.json().catch(()=>({}))).values||[]);
-      while(rowsV.length>1&&!rowsV[rowsV.length-1][0])rowsV.pop();
-      if(rowsV.length>1){
-        const novos=rowsV.slice(1).filter(r=>r[0]).map((r,i)=>({
-          id:Date.now()+i*7,sinc:true,
-          placa:r[0]||'',nome:r[1]||'',tipo:r[2]||'',
-          capSacas:parseInt(r[3])||0,capKg:parseInt(r[4])||0,tara:parseInt(r[5])||0,
-          motoristaPad:r[6]||'',status:r[7]||'Disponível',obs:r[8]||''
-        }));
-        const cc=new Set(novos.map(v=>v.placa));
-        dadosVeiculos=[...dadosVeiculos.filter(v=>!v.sinc&&!cc.has(v.placa)),...novos];
-        salvarVeiculosLocal(); updateBadges(); updateSelects(); renderVeiculos();
-      }
+    const rowsV=await lerAbaExcel(fid,'Veiculos');
+    if(rowsV&&rowsV.length>1){
+      const novos=rowsV.slice(1).filter(r=>r[0]).map((r,i)=>({
+        id:Date.now()+i*7,sinc:true,
+        placa:String(r[0]||'').toUpperCase(),nome:r[1]||'',tipo:r[2]||'',
+        capSacas:parseInt(r[3])||0,capKg:parseInt(r[4])||0,tara:parseInt(r[5])||0,
+        motoristaPad:r[6]||'',status:r[7]||'Disponível',obs:r[8]||''
+      }));
+      const cc=new Set(novos.map(v=>v.placa));
+      dadosVeiculos=[...dadosVeiculos.filter(v=>!v.sinc&&!cc.has(v.placa)),...novos];
+      salvarVeiculosLocal(); updateBadges(); updateSelects(); renderVeiculos();
     }
 
     // Carrega Motoristas
-    const rmot=await fetch(`https://graph.microsoft.com/v1.0/me/drive/items/${fid}/workbook/worksheets/Motoristas/range(address='A1:H500')`,{headers:hdrs});
-    if(rmot.ok){
-      let rowsM=((await rmot.json().catch(()=>({}))).values||[]);
-      while(rowsM.length>1&&!rowsM[rowsM.length-1][0])rowsM.pop();
-      if(rowsM.length>1){
-        const novos=rowsM.slice(1).filter(r=>r[0]).map((r,i)=>({
-          id:Date.now()+i*11,sinc:true,
-          nome:r[0]||'',tel:r[1]||'',cpf:r[2]||'',cnh:r[3]||'',
-          cat:r[4]||'',vcnh:r[5]||'',status:r[6]||'Ativo',obs:r[7]||''
-        }));
-        const cc=new Set(novos.map(m=>m.nome));
-        dadosMotoristas=[...dadosMotoristas.filter(m=>!m.sinc&&!cc.has(m.nome)),...novos];
-        salvarMotoristasLocal(); updateBadges(); updateSelects(); renderMotoristas();
-      }
+    const rowsM=await lerAbaExcel(fid,'Motoristas');
+    if(rowsM&&rowsM.length>1){
+      const novos=rowsM.slice(1).filter(r=>r[0]).map((r,i)=>({
+        id:Date.now()+i*11,sinc:true,
+        nome:r[0]||'',tel:r[1]||'',cpf:r[2]||'',cnh:r[3]||'',
+        cat:r[4]||'',vcnh:r[5]||'',status:r[6]||'Ativo',obs:r[7]||''
+      }));
+      const cc=new Set(novos.map(m=>m.nome));
+      dadosMotoristas=[...dadosMotoristas.filter(m=>!m.sinc&&!cc.has(m.nome)),...novos];
+      salvarMotoristasLocal(); updateBadges(); updateSelects(); renderMotoristas();
     }
   }catch(e){console.warn('Erro carregar veículos/motoristas:',e);}
 }
@@ -1582,6 +1574,25 @@ function salvarPath(){odPath=document.getElementById('cfg-path').value.trim()||'
 // =====================================================================
 // ONEDRIVE — FRETES
 // =====================================================================
+
+// Baixa o arquivo Excel via Drive content endpoint e parseia com SheetJS.
+// Não usa a Workbook API — funciona sem o arquivo ter sido aberto no Excel Online.
+async function lerAbaExcel(fileId, sheetName){
+  const resp=await fetch(
+    `https://graph.microsoft.com/v1.0/me/drive/items/${fileId}/content`,
+    {headers:{Authorization:'Bearer '+msToken}}
+  );
+  if(!resp.ok) return null;
+  const buf=await resp.arrayBuffer();
+  const wb=XLSX.read(new Uint8Array(buf),{type:'array'});
+  if(!wb.SheetNames.includes(sheetName)) return null;
+  const ws=wb.Sheets[sheetName];
+  const rows=XLSX.utils.sheet_to_json(ws,{header:1,defval:''});
+  // Remove linhas completamente vazias no final
+  while(rows.length>1&&rows[rows.length-1].every(c=>c===''||c===null||c===undefined))rows.pop();
+  return rows; // [ [header...], [row1...], ... ]
+}
+
 async function carregarOneDrive(){
   if(!msToken)return; setSinc('pending','Carregando...'); document.getElementById('hist-loading').style.display='block';
   try{
@@ -1591,24 +1602,8 @@ async function carregarOneDrive(){
     const ck=await fetch(`https://graph.microsoft.com/v1.0/me/drive/root:/${enc}`,{headers:{Authorization:'Bearer '+msToken}});
     if(!ck.ok){setSinc('ok','Conectado');return;}
     const fid=(await ck.json()).id;
-    const meta=await(await fetch(`https://graph.microsoft.com/v1.0/me/drive/items/${fid}?select=name,size,file`,{headers:{Authorization:'Bearer '+msToken}})).json();
-    if(!meta.file||meta.size<1000){setSinc('ok','Conectado');return;}
-    const rdHdrs={'Authorization':'Bearer '+msToken};
-    // Tenta ler abas — se 501, o arquivo ainda não foi ativado no Excel Online
-    const wsResp=await fetch(`https://graph.microsoft.com/v1.0/me/drive/items/${fid}/workbook/worksheets`,{headers:rdHdrs});
-    if(!wsResp.ok){setSinc('ok','Conectado');return;}
-    const wsJson=await wsResp.json().catch(()=>({}));
-    const abas=(wsJson?.value||[]).map(s=>s.name);
-    if(!abas.includes(mes)){setSinc('ok','Conectado');return;}
-    // Lê via range direto — mais robusto que usedRange
-    const rr=await fetch(`https://graph.microsoft.com/v1.0/me/drive/items/${fid}/workbook/worksheets/${encodeURIComponent(mes)}/range(address='A1:AE500')`,{headers:rdHdrs});
-    if(!rr.ok){setSinc('ok','Conectado');return;}
-    const rrJson=await rr.json().catch(()=>({}));
-    // Filtra linhas vazias a partir do final
-    let allRows=(rrJson?.values||[]);
-    while(allRows.length>1&&(!allRows[allRows.length-1][0]))allRows.pop();
-    const rows=allRows;
-    if(rows.length<=1){setSinc('ok','Conectado');return;}
+    const rows=await lerAbaExcel(fid,mes);
+    if(!rows||rows.length<=1){setSinc('ok','Conectado');return;}
     const novos=[];
     for(let i=1;i<rows.length;i++){
       const r=rows[i];if(!r[0])continue;
@@ -1697,22 +1692,13 @@ async function carregarPropsOneDrive(){
     const ck=await fetch(`https://graph.microsoft.com/v1.0/me/drive/root:/${enc}`,{headers:{Authorization:'Bearer '+msToken}});
     if(!ck.ok)return;
     const fid=(await ck.json()).id;
-    const meta=await(await fetch(`https://graph.microsoft.com/v1.0/me/drive/items/${fid}?select=name,size,file`,{headers:{Authorization:'Bearer '+msToken}})).json();
-    if(!meta.file||meta.size<1000)return;
-    const rdHdrsP={'Authorization':'Bearer '+msToken};
-    // Lê aba Clientes diretamente via range — evita chamada a /worksheets que retorna 501
-    const rr=await fetch(`https://graph.microsoft.com/v1.0/me/drive/items/${fid}/workbook/worksheets/Clientes/range(address='A1:J500')`,{headers:rdHdrsP});
-    if(!rr.ok)return;
-    const rrJson=await rr.json().catch(()=>({}));
-    let allRowsP=(rrJson?.values||[]);
-    while(allRowsP.length>1&&(!allRowsP[allRowsP.length-1][0]))allRowsP.pop();
-    const rows=allRowsP;
-    if(rows.length<=1)return;
+    const rows=await lerAbaExcel(fid,'Clientes');
+    if(!rows||rows.length<=1)return;
     const props=[];
     for(let i=1;i<rows.length;i++){
       const r=rows[i];if(!r[0])continue;
-      // Detecta formato novo (10 cols) vs antigo (8 cols)
-      const isNovo=r.length>=9&&(r[1]!==undefined&&!r[1].toString().match(/^\d/));
+      // Detecta formato novo (10 cols com Apelido/Comunidade/Contato) vs antigo (8 cols)
+      const isNovo=rows[0]&&rows[0][1]==='Apelido';
       props.push({
         id:Date.now()+i*13,
         nome:r[0]||'',
