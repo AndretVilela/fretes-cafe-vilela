@@ -1,0 +1,1773 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Gestão de Fretes — Café Vilela</title>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;500;600&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+:root{
+  --cafe:#3C2A1E;--cafe-mid:#6B4226;--cafe-light:#C8956C;
+  --cream:#FAF7F2;--cream-dark:#F0EBE3;--gold:#C9A84C;
+  --text:#1A1209;--text-mid:#5C4A35;--text-light:#9C8470;
+  --border:rgba(60,42,30,0.12);--border-mid:rgba(60,42,30,0.22);
+  --radius:14px;--shadow:0 2px 16px rgba(60,42,30,0.08);
+  --green:#2E7D32;--green-bg:#E8F5E9;
+  --blue:#1565C0;--blue-bg:#E3F2FD;
+  --purple:#4527A0;--purple-bg:#EDE7F6;
+  --red:#C62828;--red-bg:#FFEBEE;--orange:#E65100;
+}
+body{font-family:'DM Sans',sans-serif;background:var(--cream);min-height:100vh;color:var(--text);overscroll-behavior-y:contain}
+.app{max-width:960px;margin:0 auto;padding:1.25rem}
+
+/* HEADER */
+.header{background:var(--cafe);border-radius:var(--radius);padding:1rem 1.5rem;margin-bottom:1.5rem;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;position:sticky;top:0;z-index:50;box-shadow:0 4px 20px rgba(60,42,30,0.25)}
+.header-brand{display:flex;align-items:center;gap:12px}
+.header-brand-icon{width:36px;height:36px;background:rgba(255,255,255,0.1);border-radius:9px;display:flex;align-items:center;justify-content:center;font-size:19px;flex-shrink:0}
+.header-brand h1{font-family:'Playfair Display',serif;font-size:17px;font-weight:600;color:#fff}
+.header-brand p{font-size:11px;color:rgba(255,255,255,0.5);margin-top:1px;font-weight:300}
+.header-right{display:flex;align-items:center;gap:7px;flex-wrap:wrap}
+.nav-tabs{display:flex;gap:2px;background:rgba(255,255,255,0.08);border-radius:10px;padding:3px}
+.nav-btn{background:transparent;border:none;color:rgba(255,255,255,0.6);padding:6px 11px;border-radius:7px;font-size:12px;font-family:'DM Sans',sans-serif;cursor:pointer;transition:all 0.15s;font-weight:400;display:flex;align-items:center;gap:4px;white-space:nowrap}
+.nav-btn:hover{color:#fff;background:rgba(255,255,255,0.1)}
+.nav-btn.active{background:rgba(255,255,255,0.18);color:#fff;font-weight:500}
+.badge{background:var(--gold);color:var(--cafe);border-radius:20px;font-size:10px;padding:1px 6px;font-weight:600}
+.btn-ms{background:rgba(255,255,255,0.1);border:1px solid rgba(255,255,255,0.2);color:rgba(255,255,255,0.85);border-radius:8px;padding:6px 11px;font-size:12px;font-family:'DM Sans',sans-serif;cursor:pointer;display:flex;align-items:center;gap:6px;transition:all 0.15s;white-space:nowrap}
+.btn-ms:hover{background:rgba(255,255,255,0.18)}
+.btn-ms.connected{background:rgba(76,175,80,0.2);border-color:rgba(76,175,80,0.4);color:#A5D6A7}
+.sync-dot{width:7px;height:7px;border-radius:50%;flex-shrink:0}
+.sync-dot.ok{background:#4CAF50}.sync-dot.pending{background:#FFA726}.sync-dot.error{background:#EF5350}
+
+/* SCREENS */
+.screen{display:none;animation:fadeIn 0.2s ease}
+.screen.active{display:block}
+@keyframes fadeIn{from{opacity:0;transform:translateY(4px)}to{opacity:1;transform:none}}
+
+/* CARDS */
+.card{background:#fff;border:0.5px solid var(--border);border-radius:var(--radius);padding:1.25rem 1.5rem;margin-bottom:1rem;box-shadow:var(--shadow)}
+.card-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:1rem;flex-wrap:wrap;gap:8px}
+.section-title{font-size:11px;font-weight:500;color:var(--text-light);text-transform:uppercase;letter-spacing:0.8px;margin-bottom:1rem}
+
+/* FORM */
+.form-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:.875rem}
+.form-group{display:flex;flex-direction:column;gap:5px}
+.form-group label{font-size:12px;color:var(--text-mid);font-weight:500}
+.form-group input,.form-group select,.form-group textarea{border:0.5px solid var(--border-mid);border-radius:9px;padding:10px 12px;font-size:14px;background:var(--cream);color:var(--text);font-family:'DM Sans',sans-serif;outline:none;transition:border-color 0.15s;width:100%}
+.form-group input:focus,.form-group select:focus,.form-group textarea:focus{border-color:var(--cafe-mid);background:#fff;box-shadow:0 0 0 3px rgba(107,66,38,0.08)}
+.form-group textarea{resize:vertical;min-height:70px}
+.form-group select{cursor:pointer}
+.form-group input[type="number"]{-moz-appearance:textfield}
+.form-group input[type="number"]::-webkit-inner-spin-button{-webkit-appearance:none}
+.form-readonly{background:var(--cream-dark)!important;color:var(--text-mid)!important;cursor:default}
+
+/* CÁLCULO BOX */
+.calc-box{background:linear-gradient(135deg,#FDF6EF,#FAF7F2);border:1px solid rgba(107,66,38,0.15);border-radius:10px;padding:1rem 1.1rem;margin-top:.875rem}
+.calc-box-title{font-size:10px;font-weight:600;color:var(--cafe-mid);text-transform:uppercase;letter-spacing:.7px;margin-bottom:.75rem}
+.calc-items{display:flex;flex-wrap:wrap;gap:.875rem}
+.calc-item{display:flex;flex-direction:column;gap:2px;min-width:110px}
+.calc-lbl{font-size:10px;color:var(--text-light);font-weight:500;text-transform:uppercase;letter-spacing:.5px}
+.calc-val{font-family:'Playfair Display',serif;font-size:20px;font-weight:600;color:var(--cafe)}
+.calc-unit{font-size:11px;color:var(--text-mid)}
+.aviso-box{background:#FFF8E1;border:1px solid #FFD54F;border-radius:9px;padding:.875rem 1rem;margin-top:.875rem;font-size:13px;color:#E65100;display:flex;align-items:flex-start;gap:8px}
+.aviso-box .icon{font-size:18px;flex-shrink:0;margin-top:-1px}
+
+/* BOTÕES */
+.btn{border:none;border-radius:10px;padding:11px 22px;font-size:14px;font-family:'DM Sans',sans-serif;font-weight:500;cursor:pointer;transition:all 0.15s;display:inline-flex;align-items:center;gap:7px;white-space:nowrap}
+.btn-primary{background:var(--cafe);color:#fff;width:100%;justify-content:center}
+.btn-primary:hover{background:var(--cafe-mid)}
+.btn-primary:disabled{background:var(--text-light);cursor:not-allowed}
+.btn-secondary{background:var(--cream-dark);color:var(--text);border:0.5px solid var(--border-mid)}
+.btn-secondary:hover{background:var(--cream)}
+.btn-sm{padding:6px 13px;font-size:12px;border-radius:8px}
+.btn-map{background:#1A73E8;color:#fff;text-decoration:none;border-radius:8px;padding:7px 12px;font-size:12px;font-weight:500;font-family:'DM Sans',sans-serif;display:inline-flex;align-items:center;gap:5px;transition:all 0.15s;border:none;cursor:pointer}
+.btn-map:hover{background:#1557B0;transform:translateY(-1px)}
+.btn-map-pin{background:#0F9D58;color:#fff;text-decoration:none;border-radius:8px;padding:7px 12px;font-size:12px;font-weight:500;font-family:'DM Sans',sans-serif;display:inline-flex;align-items:center;gap:5px;transition:all 0.15s}
+.btn-map-pin:hover{background:#0B8043}
+.btn-wa{background:#25D366;color:#fff}
+.btn-wa:hover{background:#1DA851}
+.btn-pdf{background:#D83B01;color:#fff}
+.btn-pdf:hover{background:#b03000}
+.btn-danger{background:var(--red);color:#fff}
+.btn-danger:hover{opacity:.85}
+.btn-green{background:var(--green);color:#fff}
+.btn-green:hover{opacity:.85}
+
+/* LOCK */
+.lock-overlay{position:absolute;inset:0;z-index:50;background:rgba(250,247,242,0.93);border-radius:var(--radius);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;text-align:center;padding:2rem;backdrop-filter:blur(4px)}
+.lock-overlay h2{font-family:'Playfair Display',serif;font-size:19px;font-weight:600;color:var(--cafe)}
+.lock-overlay p{font-size:13px;color:var(--text-mid);max-width:300px;line-height:1.6}
+
+/* PILLS */
+.pill{display:inline-flex;align-items:center;gap:4px;padding:3px 10px;border-radius:20px;font-size:11px;font-weight:600}
+.pill::before{content:'';width:5px;height:5px;border-radius:50%;background:currentColor;flex-shrink:0}
+.pill-agendado{background:var(--blue-bg);color:var(--blue)}
+.pill-em-rota{background:var(--green-bg);color:var(--green)}
+.pill-concluido{background:var(--purple-bg);color:var(--purple)}
+.pill-cancelado{background:var(--red-bg);color:var(--red)}
+
+/* HIST LIST */
+.hist-list{display:flex;flex-direction:column;gap:8px}
+.hist-item{background:#fff;border:0.5px solid var(--border);border-radius:12px;padding:.875rem 1.1rem;display:grid;align-items:center;gap:10px;cursor:pointer;transition:background 0.15s;box-shadow:var(--shadow)}
+.hist-item:hover{background:var(--cream)}
+.hi-data{font-size:12px;font-weight:500;color:var(--text-light)}
+.hi-hora{font-size:11px;color:var(--text-light);margin-top:2px}
+.hi-title{font-size:14px;font-weight:500;color:var(--text)}
+.hi-sub{font-size:12px;color:var(--text-light);margin-top:2px}
+.placa{font-family:monospace;font-size:11px;font-weight:600;background:var(--cream-dark);padding:2px 7px;border-radius:4px;color:var(--cafe)}
+
+/* CALENDÁRIO */
+.cal-nav{display:flex;align-items:center;justify-content:space-between;margin-bottom:1rem}
+.cal-nav-title{font-family:'Playfair Display',serif;font-size:17px;font-weight:600;color:var(--cafe)}
+.cal-nav-btns{display:flex;gap:6px}
+.cal-nav-btn{background:var(--cream-dark);border:0.5px solid var(--border-mid);border-radius:8px;padding:5px 12px;font-size:12px;font-family:'DM Sans',sans-serif;cursor:pointer;color:var(--text);transition:all 0.15s}
+.cal-nav-btn:hover{background:var(--cream);border-color:var(--cafe-light)}
+.cal-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:3px;margin-bottom:.5rem}
+.cal-dow{text-align:center;font-size:10px;font-weight:600;color:var(--text-light);text-transform:uppercase;letter-spacing:.5px;padding:4px 2px}
+.cal-day{min-height:56px;border-radius:8px;padding:4px;border:0.5px solid var(--border);background:#fff;cursor:pointer;transition:all 0.15s;position:relative;overflow:hidden}
+.cal-day:hover{border-color:var(--cafe-light);background:var(--cream)}
+.cal-day.hoje{border-color:var(--gold);background:#FFFBF0}
+.cal-day.outro-mes{background:var(--cream-dark);opacity:.6}
+.cal-day.tem-frete{border-color:var(--cafe-light)}
+.cal-day-num{font-size:11px;font-weight:500;color:var(--text-mid);display:block;text-align:right;margin-bottom:2px}
+.cal-day.hoje .cal-day-num{color:var(--cafe);font-weight:700}
+.cal-evento{font-size:9px;font-weight:600;border-radius:3px;padding:1px 4px;margin-bottom:1px;overflow:hidden;white-space:nowrap;text-overflow:ellipsis}
+.cal-evento.ag{background:var(--blue-bg);color:var(--blue)}
+.cal-evento.er{background:var(--green-bg);color:var(--green)}
+.cal-evento.co{background:var(--purple-bg);color:var(--purple)}
+.cal-evento.ca{background:var(--red-bg);color:var(--red)}
+.cal-view-btns{display:flex;gap:4px;margin-bottom:1rem}
+.cal-view-btn{background:var(--cream-dark);border:0.5px solid var(--border-mid);border-radius:7px;padding:5px 12px;font-size:12px;font-family:'DM Sans',sans-serif;cursor:pointer;color:var(--text-mid);transition:all 0.15s}
+.cal-view-btn.active{background:var(--cafe);color:#fff;border-color:var(--cafe)}
+
+/* PROPRIEDADES */
+.prop-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:12px}
+.prop-card{background:#fff;border:0.5px solid var(--border);border-radius:12px;padding:1rem 1.1rem;box-shadow:var(--shadow);transition:all 0.15s}
+.prop-card:hover{border-color:var(--cafe-light);transform:translateY(-1px)}
+.prop-nome{font-size:14px;font-weight:600;color:var(--cafe);margin-bottom:2px}
+.prop-produtor{font-size:12px;color:var(--text-mid);margin-bottom:8px}
+.prop-gps{font-family:monospace;font-size:11px;color:var(--green);background:var(--green-bg);padding:3px 7px;border-radius:5px;margin-bottom:6px;display:inline-block}
+.prop-sem-gps{font-size:11px;color:var(--orange);background:#FFF3E0;padding:3px 7px;border-radius:5px;margin-bottom:6px;display:inline-block;border:1px solid #FFCC80}
+.prop-tags{display:flex;flex-wrap:wrap;gap:4px;margin-bottom:6px}
+.prop-tag{font-size:10px;padding:2px 7px;border-radius:20px;background:var(--cream-dark);color:var(--text-mid);font-weight:500}
+.prop-actions{display:flex;gap:5px;align-items:center;flex-wrap:wrap;margin-top:8px}
+
+/* GPS BOX */
+.gps-box{border-radius:8px;padding:9px 11px;display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;margin-top:6px}
+.gps-box.ok{background:var(--green-bg);border:1px solid #A5D6A7}
+.gps-box.sem{background:#FFF3E0;border:1px solid #FFCC80}
+.gps-coords{font-family:monospace;font-size:11px;color:var(--green)}
+
+/* SUMMARY */
+.summary-row{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:10px;margin-bottom:1.25rem}
+.summary-card{background:#fff;border:0.5px solid var(--border);border-radius:12px;padding:.875rem 1rem;box-shadow:var(--shadow);position:relative;overflow:hidden}
+.summary-card::after{content:'';position:absolute;bottom:0;left:0;right:0;height:3px;background:var(--cafe-light)}
+.summary-card.green::after{background:var(--green)}
+.summary-card.blue::after{background:var(--blue)}
+.summary-card.gold::after{background:var(--gold)}
+.summary-lbl{font-size:10px;font-weight:500;color:var(--text-light);text-transform:uppercase;letter-spacing:.7px;margin-bottom:4px}
+.summary-val{font-family:'Playfair Display',serif;font-size:20px;font-weight:600;color:var(--cafe)}
+.summary-sub{font-size:11px;color:var(--text-light);margin-top:2px}
+
+/* FILTER BAR */
+.filter-bar{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:1rem}
+.filter-bar select,.filter-bar input{border:0.5px solid var(--border-mid);border-radius:8px;padding:7px 10px;font-size:12px;background:var(--cream);color:var(--text);font-family:'DM Sans',sans-serif;outline:none;cursor:pointer}
+.filter-bar select:focus,.filter-bar input:focus{border-color:var(--cafe-mid)}
+
+/* MODAL */
+.modal-overlay{display:none;position:fixed;inset:0;background:rgba(26,18,9,0.55);z-index:200;align-items:center;justify-content:center;padding:1rem;backdrop-filter:blur(2px)}
+.modal-overlay.open{display:flex}
+.modal{background:#fff;border-radius:18px;padding:0;max-width:560px;width:100%;max-height:92vh;overflow-y:auto;box-shadow:0 12px 50px rgba(26,18,9,0.25)}
+.modal-head{background:var(--cafe);padding:1rem 1.4rem;border-radius:18px 18px 0 0;display:flex;align-items:center;justify-content:space-between}
+.modal-head h2{font-family:'Playfair Display',serif;font-size:16px;font-weight:600;color:#fff}
+.modal-close{background:rgba(255,255,255,0.12);border:none;border-radius:50%;width:28px;height:28px;font-size:14px;cursor:pointer;color:rgba(255,255,255,0.7);display:flex;align-items:center;justify-content:center;transition:background 0.15s}
+.modal-close:hover{background:rgba(255,255,255,0.22);color:#fff}
+.modal-body{padding:1.1rem 1.4rem}
+.modal-foot{padding:.875rem 1.4rem;border-top:0.5px solid var(--border);display:flex;gap:8px;flex-wrap:wrap;background:var(--cream);border-radius:0 0 18px 18px}
+.modal-foot button{flex:1;min-width:90px}
+.modal-row{display:flex;justify-content:space-between;padding:7px 0;border-bottom:0.5px solid var(--border);font-size:13px}
+.modal-row:last-child{border-bottom:none}
+.modal-row span:first-child{color:var(--text-light);flex-shrink:0;margin-right:12px}
+.modal-row span:last-child{font-weight:500;color:var(--text);text-align:right}
+
+/* CONFIG */
+.cfg-box{background:#FDF6EF;border:1px solid rgba(107,66,38,0.15);border-radius:12px;padding:1rem 1.1rem;margin-bottom:1rem}
+.cfg-box h3{font-size:13px;font-weight:600;color:var(--cafe);margin-bottom:4px}
+.cfg-box p{font-size:12px;color:var(--cafe-mid);line-height:1.6}
+.cfg-row{display:flex;gap:8px;margin-top:8px}
+.cfg-row input{flex:1;border:1px solid rgba(107,66,38,0.22);border-radius:8px;padding:8px 11px;font-size:13px;background:#fff;color:var(--text);font-family:'DM Sans',sans-serif;outline:none}
+.cfg-row input:focus{border-color:var(--cafe-mid)}
+.cfg-save{background:var(--cafe);color:#fff;border:none;border-radius:8px;padding:8px 14px;font-size:13px;font-family:'DM Sans',sans-serif;cursor:pointer;white-space:nowrap}
+.cfg-save:hover{background:var(--cafe-mid)}
+
+/* VEÍCULOS & MOTORISTAS */
+.veiculo-card,.motorista-card{background:#fff;border:0.5px solid var(--border);border-radius:12px;padding:.875rem 1rem;box-shadow:var(--shadow);transition:all 0.15s}
+.veiculo-card:hover,.motorista-card:hover{border-color:var(--cafe-light)}
+.vc-placa{font-family:monospace;font-size:15px;font-weight:700;color:var(--cafe);background:var(--cream-dark);padding:3px 10px;border-radius:6px;display:inline-block;letter-spacing:.08em;margin-bottom:6px}
+.vc-nome{font-size:13px;font-weight:600;color:var(--text);margin-bottom:2px}
+.vc-info{font-size:11px;color:var(--text-light);margin-bottom:6px}
+.cap-bar{background:var(--cream-dark);border-radius:4px;height:5px;overflow:hidden;margin:6px 0 3px}
+.cap-fill{height:100%;border-radius:4px;background:var(--green);transition:width .4s}
+.cap-fill.medio{background:var(--gold)}
+.cap-fill.alto{background:var(--red)}
+.cap-txt{display:flex;justify-content:space-between;font-size:10px;color:var(--text-light)}
+.mot-avatar{width:38px;height:38px;border-radius:50%;background:var(--cafe-light);color:#fff;font-size:13px;font-weight:600;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.status-ok{color:var(--green);font-size:11px;font-weight:600}
+.status-off{color:var(--red);font-size:11px;font-weight:600}
+
+/* EMPTY */
+.empty{text-align:center;padding:2.5rem 1rem;color:var(--text-light)}
+.empty-icon{font-size:38px;margin-bottom:10px;opacity:.6}
+.empty p{font-size:13px}
+
+/* TOASTS */
+.toast{position:fixed;bottom:1.5rem;right:1.5rem;padding:11px 16px;border-radius:10px;font-size:13px;font-weight:500;font-family:'DM Sans',sans-serif;z-index:400;opacity:0;transform:translateY(8px);transition:all .25s;pointer-events:none;max-width:310px;line-height:1.4}
+.toast.ok{background:#2E7D32;color:#fff}
+.toast.err{background:#C62828;color:#fff}
+.toast.show{opacity:1;transform:translateY(0)}
+
+/* OD TREE */
+.od-tree{background:var(--cream);border-radius:10px;padding:1rem;font-size:12px;color:var(--text-light);line-height:2;border:0.5px solid var(--border)}
+.od-tree .folder{color:var(--cafe-mid);font-weight:500}
+.od-tree .note{color:var(--cafe-light);font-style:italic}
+
+.tag-lbl{display:flex;align-items:center;gap:4px;font-size:12px;color:var(--text-mid);cursor:pointer;padding:4px 8px;border-radius:6px;border:0.5px solid var(--border-mid);background:var(--cream);transition:all .15s}
+.tag-lbl:hover{border-color:var(--cafe-light)}
+.tag-lbl input{margin:0}
+.hint-box{background:var(--cream-dark);border-left:3px solid var(--cafe-light);border-radius:0 7px 7px 0;padding:8px 11px;font-size:12px;color:var(--text-mid);margin-top:6px;line-height:1.6}
+</style>
+</head>
+<body>
+<div class="app">
+
+<!-- HEADER -->
+<div class="header">
+  <div class="header-brand">
+    <div class="header-brand-icon">🚛</div>
+    <div>
+      <h1>Gestão de Fretes</h1>
+      <p id="header-date"></p>
+    </div>
+  </div>
+  <div class="header-right">
+    <div id="sync-wrap" style="display:none;align-items:center;gap:6px">
+      <div class="sync-dot pending" id="sync-dot"></div>
+      <span id="sync-txt" style="font-size:11px;color:rgba(255,255,255,0.65)"></span>
+    </div>
+    <button id="btn-ms" class="btn-ms" onclick="handleMSAuth()">
+      <svg width="14" height="14" viewBox="0 0 21 21"><rect x="1" y="1" width="9" height="9" fill="#f25022"/><rect x="11" y="1" width="9" height="9" fill="#7fba00"/><rect x="1" y="11" width="9" height="9" fill="#00a4ef"/><rect x="11" y="11" width="9" height="9" fill="#ffb900"/></svg>
+      Conectar Microsoft
+    </button>
+    <div class="nav-tabs">
+      <button class="nav-btn active" onclick="showScreen('novo',this)">+ Frete</button>
+      <button class="nav-btn" onclick="showScreen('agenda',this)">Agendamentos <span class="badge" id="badge-hist">0</span></button>
+      <button class="nav-btn" onclick="showScreen('propriedades',this)">Propriedades <span class="badge" id="badge-prop">0</span></button>
+      <button class="nav-btn" onclick="showScreen('veiculos',this)">Veículos <span class="badge" id="badge-vei">0</span></button>
+      <button class="nav-btn" onclick="showScreen('motoristas',this)">Motoristas <span class="badge" id="badge-mot">0</span></button>
+      <button class="nav-btn" onclick="showScreen('config',this)">Config</button>
+    </div>
+  </div>
+</div>
+
+<!-- ====== SCREEN: NOVO FRETE ====== -->
+<div class="screen active" id="screen-novo" style="position:relative">
+  <div class="lock-overlay" id="form-lock">
+    <div style="font-size:44px">🔒</div>
+    <h2>Conexão necessária</h2>
+    <p>Para registrar fretes conecte ao Microsoft 365 (contato@cafevilela.com.br).</p>
+    <button class="btn btn-primary" style="width:auto;padding:10px 22px" onclick="handleMSAuth()">
+      <svg width="15" height="15" viewBox="0 0 21 21"><rect x="1" y="1" width="9" height="9" fill="#f25022"/><rect x="11" y="1" width="9" height="9" fill="#7fba00"/><rect x="1" y="11" width="9" height="9" fill="#00a4ef"/><rect x="11" y="11" width="9" height="9" fill="#ffb900"/></svg>
+      Conectar Microsoft
+    </button>
+  </div>
+
+  <div class="card">
+    <div class="section-title">Dados do Frete</div>
+    <div class="form-grid">
+      <div class="form-group"><label>Data</label><input type="date" id="f-data"></div>
+      <div class="form-group"><label>Horário de Saída</label><input type="time" id="f-hora"></div>
+      <div class="form-group">
+        <label>Motorista</label>
+        <select id="f-motorista"><option value="">— Selecione —</option></select>
+      </div>
+      <div class="form-group">
+        <label>Veículo</label>
+        <select id="f-veiculo" onchange="onVeiculoSelect()"><option value="">— Selecione —</option></select>
+      </div>
+    </div>
+    <div id="veiculo-cap-box" style="display:none;margin-top:.75rem"></div>
+  </div>
+
+  <div class="card">
+    <div class="section-title">Propriedade de Origem</div>
+    <div class="form-group" style="margin-bottom:.875rem">
+      <label>Selecionar propriedade cadastrada</label>
+      <select id="f-prop-sel" onchange="onPropSelect()"><option value="">— Selecione ou preencha manualmente —</option></select>
+    </div>
+    <div id="prop-preview" style="display:none;margin-bottom:.875rem"></div>
+    <div id="alerta-frete-duplo" style="display:none;margin-bottom:.875rem"></div>
+    <div class="form-grid">
+      <div class="form-group"><label>Produtor / Fazenda</label><input type="text" id="f-produtor" placeholder="Nome do produtor"></div>
+      <div class="form-group"><label>Município</label><input type="text" id="f-municipio" placeholder="Cidade — MG"></div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="section-title">Produto e Carga</div>
+    <div class="form-grid">
+      <div class="form-group">
+        <label>Tipo de Café</label>
+        <select id="f-tipo" onchange="onTipoChange()">
+          <option value="beneficiado">Café Beneficiado</option>
+          <option value="escolha">Café Escolha</option>
+          <option value="cereja">Café Cereja</option>
+          <option value="coco">Café em Coco</option>
+        </select>
+      </div>
+      <!-- BENEFICIADO / ESCOLHA -->
+      <div class="form-group" id="g-sacas"><label>Quantidade (sacas 60 kg)</label><input type="number" id="f-sacas" placeholder="0" min="0" step="1" oninput="calcCarga()"></div>
+      <!-- CEREJA -->
+      <div class="form-group" id="g-tambores" style="display:none"><label>Quantidade (tambores 20 L)</label><input type="number" id="f-tambores" placeholder="0" min="0" step="1" oninput="calcCarga()"></div>
+      <!-- COCO -->
+      <div class="form-group" id="g-arrobas" style="display:none"><label>Quantidade (arrobas 30 kg)</label><input type="number" id="f-arrobas" placeholder="0" min="0" step="1" oninput="calcCarga()"></div>
+      <div class="form-group" id="g-renda" style="display:none"><label>Renda estimada (%)</label><input type="number" id="f-renda" placeholder="Ex: 45" min="1" max="100" step="0.1" oninput="calcCarga()"></div>
+      <!-- ESCOLHA -->
+      <div class="form-group" id="g-aproveit" style="display:none">
+        <label>Aproveitamento estimado (%)</label>
+        <input type="number" id="f-aproveit" placeholder="Ex: 70" min="1" max="100" step="1" oninput="calcCarga()">
+      </div>
+      <!-- PESO TOTAL — sempre visível -->
+      <div class="form-group" id="g-carga-kg">
+        <label>Carga Total (kg)</label>
+        <input type="number" id="f-carga-kg" placeholder="0" step="1" min="0" oninput="calcCarga()">
+      </div>
+    </div>
+    <div id="calc-result" style="display:none"></div>
+    <div id="cap-aviso" style="display:none"></div>
+  </div>
+
+  <div class="card">
+    <div class="section-title">Destino e Rota</div>
+    <div style="display:flex;gap:8px;align-items:flex-end">
+      <div class="form-group" style="flex:1;margin:0">
+        <label>Destino Final — Propriedade cadastrada</label>
+        <select id="f-destino-prop" onchange="onDestinoSelect()">
+          <option value="">— Selecione uma propriedade —</option>
+        </select>
+      </div>
+      <button type="button" onclick="abrirRotaDestino()" class="btn-map" style="padding:10px 13px;flex-shrink:0;margin-bottom:0" title="Origem = propriedade de saída (com GPS); Destino = propriedade selecionada acima">🗺️ Ver Rota</button>
+    </div>
+    <div id="destino-gps-info" style="display:none;margin-top:8px"></div>
+  </div>
+
+  <div class="card">
+    <div class="section-title">Agendamento</div>
+    <div class="form-grid">
+      <div class="form-group">
+        <label>Distância estimada (km)</label>
+        <input type="number" id="f-km" placeholder="0" step="1" min="0">
+      </div>
+      <div class="form-group"><label>Valor do Frete (R$)</label><input type="number" id="f-valor" placeholder="0,00" step="0.01" min="0"></div>
+    </div>
+    <div class="form-group" style="margin-top:.875rem"><label>Observações</label><textarea id="f-obs" placeholder="Anotações, condições de acesso, observações da carga..."></textarea></div>
+  </div>
+
+  <button class="btn btn-primary" onclick="salvarFrete()">Salvar e Sincronizar Frete</button>
+</div>
+
+<!-- ====== SCREEN: AGENDAMENTOS ====== -->
+<div class="screen" id="screen-agenda">
+  <div class="card">
+    <div class="card-header">
+      <div>
+        <div class="section-title" style="margin-bottom:2px">Agendamentos — <span id="hist-mes"></span></div>
+        <div style="font-size:11px;color:var(--text-light)">Histórico completo no OneDrive. Visualização livre — sem necessidade de login.</div>
+      </div>
+      <div style="display:flex;gap:6px;align-items:center">
+        <div id="hist-loading" style="display:none;font-size:12px;color:var(--text-light)">⏳ Atualizando...</div>
+      </div>
+    </div>
+
+    <!-- CARDS DE RESUMO -->
+    <div class="summary-row" id="summary-row"></div>
+
+    <!-- TOGGLE CALENDÁRIO / LISTA -->
+    <div class="cal-view-btns">
+      <button class="cal-view-btn active" id="btn-view-cal" onclick="setView('cal')">📅 Calendário</button>
+      <button class="cal-view-btn" id="btn-view-list" onclick="setView('list')">📋 Lista</button>
+    </div>
+
+    <!-- CALENDÁRIO -->
+    <div id="view-cal">
+      <div class="cal-nav">
+        <button class="cal-nav-btn" onclick="mudarMesCal(-1)">← Anterior</button>
+        <div class="cal-nav-title" id="cal-titulo"></div>
+        <div style="display:flex;gap:6px">
+          <button class="cal-nav-btn" onclick="mudarMesCal(0)">Hoje</button>
+          <button class="cal-nav-btn" onclick="mudarMesCal(1)">Próximo →</button>
+        </div>
+      </div>
+      <div class="cal-grid" id="cal-dow"></div>
+      <div class="cal-grid" id="cal-body" style="margin-bottom:0"></div>
+      <div id="cal-dia-detalhe" style="margin-top:.75rem;display:none"></div>
+    </div>
+
+    <!-- LISTA -->
+    <div id="view-list" style="display:none">
+      <div class="filter-bar">
+        <select id="filtro-status" onchange="renderLista()">
+          <option value="">Todos os status</option>
+          <option value="Agendado">Agendado</option>
+          <option value="Em Rota">Em Rota</option>
+          <option value="Concluído">Concluído</option>
+          <option value="Cancelado">Cancelado</option>
+        </select>
+        <input type="text" id="filtro-busca" placeholder="🔍 Buscar produtor ou fazenda..." oninput="renderLista()" style="min-width:190px">
+      </div>
+      <div id="hist-container">
+        <div class="empty"><div class="empty-icon">🚛</div><p>Nenhum frete registrado.</p></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ====== SCREEN: PROPRIEDADES ====== -->
+<div class="screen" id="screen-propriedades">
+  <div class="card">
+    <div class="card-header">
+      <div>
+        <div class="section-title" style="margin-bottom:2px">Propriedades Rurais</div>
+        <div style="font-size:11px;color:var(--text-light)">Fazendas e clientes com GPS para rota direta.</div>
+      </div>
+      <button class="btn btn-secondary btn-sm" onclick="openPropModal()">+ Nova Propriedade</button>
+    </div>
+    <div id="prop-container"><div class="empty"><div class="empty-icon">📍</div><p>Nenhuma propriedade cadastrada.</p></div></div>
+  </div>
+</div>
+
+<!-- ====== SCREEN: VEÍCULOS ====== -->
+<div class="screen" id="screen-veiculos">
+  <div class="card">
+    <div class="card-header">
+      <div>
+        <div class="section-title" style="margin-bottom:2px">Veículos</div>
+        <div style="font-size:11px;color:var(--text-light)">Frota disponível com capacidade de carga.</div>
+      </div>
+      <button class="btn btn-secondary btn-sm" onclick="openVeiculoModal()">+ Novo Veículo</button>
+    </div>
+    <div id="veiculos-container"><div class="empty"><div class="empty-icon">🚚</div><p>Nenhum veículo cadastrado.</p></div></div>
+  </div>
+</div>
+
+<!-- ====== SCREEN: MOTORISTAS ====== -->
+<div class="screen" id="screen-motoristas">
+  <div class="card">
+    <div class="card-header">
+      <div>
+        <div class="section-title" style="margin-bottom:2px">Motoristas</div>
+        <div style="font-size:11px;color:var(--text-light)">Equipe de motoristas cadastrada.</div>
+      </div>
+      <button class="btn btn-secondary btn-sm" onclick="openMotoristaModal()">+ Novo Motorista</button>
+    </div>
+    <div id="motoristas-container"><div class="empty"><div class="empty-icon">👤</div><p>Nenhum motorista cadastrado.</p></div></div>
+  </div>
+</div>
+
+<!-- ====== SCREEN: CONFIG ====== -->
+<div class="screen" id="screen-config">
+  <div class="card">
+    <div class="section-title">Integração Microsoft 365</div>
+    <div class="cfg-box">
+      <h3>Client ID e Tenant ID</h3>
+      <p>IDs do registro de aplicativo no Azure (portal.azure.com).</p>
+      <div class="cfg-row"><input type="text" id="cfg-client" placeholder="Client ID"><button class="cfg-save" onclick="salvarCfg()">Salvar</button></div>
+      <div class="cfg-row" style="margin-top:6px"><input type="text" id="cfg-tenant" placeholder="Tenant ID"></div>
+    </div>
+    <div class="cfg-box">
+      <h3>Pasta raiz no OneDrive</h3>
+      <p>Pasta onde serão criados os arquivos Excel de fretes e clientes.</p>
+      <div class="cfg-row"><input type="text" id="cfg-path" placeholder="Ex: Fretes"><button class="cfg-save" onclick="salvarPath()">Salvar</button></div>
+    </div>
+    <div style="margin-top:1.25rem">
+      <div class="section-title">Status da Conexão</div>
+      <div id="cfg-status" style="font-size:13px;color:var(--text-light);padding:4px 0">Não conectado.</div>
+      <button class="btn btn-secondary" style="margin-top:10px;width:100%" onclick="handleMSAuth()">Conectar / Reconectar Microsoft 365</button>
+    </div>
+    <div style="margin-top:1.5rem">
+      <div class="section-title">Estrutura no OneDrive</div>
+      <div class="od-tree">
+        📁 <span class="folder">Fretes/</span><br>
+        &nbsp;&nbsp;&nbsp;📊 <span>Fretes_<span id="ano-atual"></span>.xlsx</span> <span class="note"> — aba por mês</span><br>
+        &nbsp;&nbsp;&nbsp;📊 <span>Clientes_Propriedades.xlsx</span> <span class="note"> — cadastro GPS</span><br>
+        &nbsp;&nbsp;&nbsp;📁 <span class="folder">Localização/</span> <span class="note"> — arquivos Google Maps</span>
+      </div>
+    </div>
+    <div style="margin-top:1.25rem">
+      <div class="section-title">Sobre</div>
+      <div style="font-size:12px;color:var(--text-light);line-height:2">
+        Versão 2.0 — Gestão de Fretes · Café Vilela<br>
+        Site: andretvilela.github.io/fretes-cafe-vilela/
+      </div>
+    </div>
+  </div>
+</div>
+</div><!-- /app -->
+
+<!-- MODAL: DETALHE FRETE -->
+<div class="modal-overlay" id="modal-frete">
+  <div class="modal">
+    <div class="modal-head"><h2 id="mf-title">Frete</h2><button class="modal-close" onclick="closeModal('frete')">✕</button></div>
+    <div class="modal-body" id="mf-body"></div>
+    <div class="modal-foot" id="mf-foot"></div>
+  </div>
+</div>
+
+<!-- MODAL: PROPRIEDADE -->
+<div class="modal-overlay" id="modal-prop">
+  <div class="modal">
+    <div class="modal-head"><h2 id="mp-title">📍 Propriedade Rural</h2><button class="modal-close" onclick="closeModal('prop')">✕</button></div>
+    <div class="modal-body">
+      <div class="section-title">Identificação</div>
+      <div class="form-grid" style="margin-bottom:.875rem">
+        <div class="form-group"><label>Nome da Propriedade / Fazenda</label><input type="text" id="p-nome" placeholder="Ex: Fazenda Boa Vista"></div>
+        <div class="form-group"><label>Apelido / Nome curto</label><input type="text" id="p-apelido" placeholder="Ex: Boa Vista, Antinha..."></div>
+        <div class="form-group"><label>Comunidade / Bairro Rural</label><input type="text" id="p-comunidade" placeholder="Ex: Comunidade Lagoinha"></div>
+        <div class="form-group"><label>Município / UF</label><input type="text" id="p-municipio" placeholder="Ex: Capitólio — MG"></div>
+      </div>
+      <div class="section-title">Produtor e Contato</div>
+      <div class="form-grid" style="margin-bottom:.875rem">
+        <div class="form-group"><label>Nome do Produtor</label><input type="text" id="p-produtor" placeholder="Nome completo"></div>
+        <div class="form-group"><label>Telefone / WhatsApp</label><input type="tel" id="p-telefone" placeholder="(35) 99999-9999"></div>
+        <div class="form-group"><label>Nome do Contato (se diferente)</label><input type="text" id="p-contato" placeholder="Quem atende o telefone"></div>
+      </div>
+      <div class="section-title">Localização GPS</div>
+      <div style="background:var(--cream);border-radius:10px;padding:1rem;margin-bottom:.875rem;border:0.5px solid var(--border)">
+        <p style="font-size:12px;color:var(--text-mid);margin-bottom:10px;line-height:1.6"><strong>Como obter:</strong> Google Maps → pressione sobre a propriedade → coordenadas aparecem no menu. Copie e cole abaixo.</p>
+        <div class="form-grid" style="margin-bottom:10px">
+          <div class="form-group"><label>Latitude</label><input type="text" id="p-lat" placeholder="-20.123456" oninput="previewGPS()"></div>
+          <div class="form-group"><label>Longitude</label><input type="text" id="p-lng" placeholder="-46.123456" oninput="previewGPS()"></div>
+        </div>
+        <button class="btn btn-secondary btn-sm" onclick="usarGPSAtual()" style="margin-bottom:8px">🎯 Usar minha localização atual</button>
+        <div id="gps-preview"></div>
+      </div>
+      <div class="form-group"><label>Observações / Referências de Acesso</label><textarea id="p-obs" placeholder="Portão azul, 2km após a ponte..." style="min-height:56px"></textarea></div>
+    </div>
+    <div class="modal-foot">
+      <button class="btn btn-secondary" onclick="closeModal('prop')">Cancelar</button>
+      <button class="btn btn-primary" onclick="salvarPropriedade()">Salvar Propriedade</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL: VEÍCULO -->
+<div class="modal-overlay" id="modal-veiculo">
+  <div class="modal">
+    <div class="modal-head"><h2 id="mv-title">🚚 Veículo</h2><button class="modal-close" onclick="closeModal('veiculo')">✕</button></div>
+    <div class="modal-body">
+      <div class="form-grid">
+        <div class="form-group"><label>Placa</label><input type="text" id="v-placa" placeholder="ABC-1234" style="text-transform:uppercase"></div>
+        <div class="form-group"><label>Identificação / Modelo</label><input type="text" id="v-nome" placeholder="Ex: Volvo FH · Truck"></div>
+        <div class="form-group"><label>Tipo</label>
+          <select id="v-tipo">
+            <option value="Toco">Toco</option>
+            <option value="Truck">Truck</option>
+            <option value="3/4">3/4</option>
+            <option value="Caminhonete">Caminhonete</option>
+          </select>
+        </div>
+        <div class="form-group"><label>Capacidade máxima (sacas 60 kg)</label><input type="number" id="v-cap-sacas" placeholder="Ex: 250" min="1"></div>
+        <div class="form-group"><label>Capacidade máxima (kg)</label><input type="number" id="v-cap-kg" placeholder="Ex: 15000" min="1" oninput="sincCapVeiculo()"></div>
+        <div class="form-group"><label>Tara (kg)</label><input type="number" id="v-tara" placeholder="Ex: 6500" min="0"></div>
+        <div class="form-group"><label>Motorista padrão</label><select id="v-motorista-pad"><option value="">— Nenhum —</option></select></div>
+        <div class="form-group"><label>Status</label>
+          <select id="v-status">
+            <option value="Disponível">Disponível</option>
+            <option value="Em uso">Em uso</option>
+            <option value="Manutenção">Manutenção</option>
+          </select>
+        </div>
+      </div>
+      <div class="form-group" style="margin-top:.875rem"><label>Observações</label><textarea id="v-obs" style="min-height:56px" placeholder="Informações adicionais..."></textarea></div>
+    </div>
+    <div class="modal-foot">
+      <button class="btn btn-secondary" onclick="closeModal('veiculo')">Cancelar</button>
+      <button class="btn btn-primary" onclick="salvarVeiculo()">Salvar Veículo</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL: MOTORISTA -->
+<div class="modal-overlay" id="modal-motorista">
+  <div class="modal">
+    <div class="modal-head"><h2 id="mm-title">👤 Motorista</h2><button class="modal-close" onclick="closeModal('motorista')">✕</button></div>
+    <div class="modal-body">
+      <div class="form-grid">
+        <div class="form-group"><label>Nome Completo</label><input type="text" id="m-nome" placeholder="Nome do motorista"></div>
+        <div class="form-group"><label>Telefone / WhatsApp</label><input type="tel" id="m-tel" placeholder="(35) 99999-9999"></div>
+        <div class="form-group"><label>CPF</label><input type="text" id="m-cpf" placeholder="000.000.000-00"></div>
+        <div class="form-group"><label>Nº CNH</label><input type="text" id="m-cnh" placeholder="00000000000"></div>
+        <div class="form-group"><label>Categoria CNH</label>
+          <select id="m-cat"><option value="B">B</option><option value="C">C</option><option value="D">D</option><option value="E">E</option></select>
+        </div>
+        <div class="form-group"><label>Validade CNH</label><input type="date" id="m-vcnh"></div>
+        <div class="form-group"><label>Status</label>
+          <select id="m-status"><option value="Ativo">Ativo</option><option value="Férias">Férias</option><option value="Inativo">Inativo</option></select>
+        </div>
+      </div>
+      <div class="form-group" style="margin-top:.875rem"><label>Observações</label><textarea id="m-obs" style="min-height:50px" placeholder="Informações adicionais..."></textarea></div>
+    </div>
+    <div class="modal-foot">
+      <button class="btn btn-secondary" onclick="closeModal('motorista')">Cancelar</button>
+      <button class="btn btn-primary" onclick="salvarMotorista()">Salvar Motorista</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast ok"  id="toast-ok"></div>
+<div class="toast err" id="toast-err"></div>
+
+<script>
+'use strict';
+// =====================================================================
+// CONSTANTES
+// =====================================================================
+const CLIENT_ID   = 'ff4e57e2-4fc1-4b2e-8e4a-28a2df5a20c9';
+const TENANT_ID   = '9a66e204-c69d-486c-97ff-40f69be9595f';
+const REDIRECT_URI = 'https://andretvilela.github.io/fretes-cafe-vilela/';
+const MS_SCOPES   = 'Files.ReadWrite User.Read offline_access';
+const LOGIN_HINT  = 'contato@cafevilela.com.br';
+const TOKEN_KEY   = 'frt_ms_token';
+const TOKEN_EXP   = 'frt_ms_token_exp';
+const MESES = ['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
+const DIAS_SEMANA = ['Dom','Seg','Ter','Qua','Qui','Sex','Sáb'];
+
+// =====================================================================
+// ESTADO
+// =====================================================================
+let msToken = null, refreshTimer = null;
+let dadosFretes = [], dadosPropriedades = [], dadosVeiculos = [], dadosMotoristas = [];
+let editandoPropIdx = null, editandoVeiculoIdx = null, editandoMotoristaIdx = null;
+let freteDetalheId = null;
+let calAno, calMes;
+let calView = 'cal';
+
+let clientId = localStorage.getItem('frt_client_id') || CLIENT_ID;
+let tenantId = localStorage.getItem('frt_tenant_id') || TENANT_ID;
+let odPath   = localStorage.getItem('frt_od_path')   || 'Fretes';
+
+const delay = ms => new Promise(r => setTimeout(r, ms));
+
+// =====================================================================
+// INIT
+// =====================================================================
+document.addEventListener('DOMContentLoaded', () => {
+  const h = new Date(); calAno = h.getFullYear(); calMes = h.getMonth();
+  const pad = n => String(n).padStart(2,'0');
+  document.getElementById('header-date').textContent = h.toLocaleDateString('pt-BR',{weekday:'long',day:'numeric',month:'long',year:'numeric'});
+  document.getElementById('hist-mes').textContent = MESES[h.getMonth()] + ' ' + h.getFullYear();
+  document.getElementById('ano-atual').textContent = h.getFullYear();
+  document.getElementById('cfg-client').value = clientId;
+  document.getElementById('cfg-tenant').value = tenantId;
+  document.getElementById('cfg-path').value   = odPath;
+  document.getElementById('f-data').value = `${h.getFullYear()}-${pad(h.getMonth()+1)}-${pad(h.getDate())}`;
+  document.getElementById('f-hora').value = '07:00';
+
+  try { const k=`frt_${h.getFullYear()}_${h.getMonth()}`; dadosFretes=JSON.parse(localStorage.getItem(k)||'[]'); } catch(e){ dadosFretes=[]; }
+  try { dadosPropriedades=JSON.parse(localStorage.getItem('frt_props')||'[]'); } catch(e){ dadosPropriedades=[]; }
+  try { dadosVeiculos=JSON.parse(localStorage.getItem('frt_veiculos')||'[]'); } catch(e){ dadosVeiculos=[]; }
+  try { dadosMotoristas=JSON.parse(localStorage.getItem('frt_motoristas')||'[]'); } catch(e){ dadosMotoristas=[]; }
+
+  updateBadges(); updateSelects();
+  checkToken();
+
+  document.querySelectorAll('.modal-overlay').forEach(el => {
+    el.addEventListener('click', e => { if(e.target===el) el.classList.remove('open'); });
+  });
+});
+
+// =====================================================================
+// NAVEGAÇÃO
+// =====================================================================
+function showScreen(name, btn) {
+  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+  document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
+  document.getElementById('screen-'+name).classList.add('active');
+  if(btn) btn.classList.add('active');
+  if(name==='agenda')      { renderAgenda(); if(msToken) carregarOneDrive().catch(()=>{}); }
+  if(name==='propriedades'){ renderProps(); if(msToken) carregarPropsOneDrive().catch(()=>{}); }
+  if(name==='veiculos')    { renderVeiculos(); if(msToken) carregarVeiculosMotoristasOneDrive().catch(()=>{}); }
+  if(name==='motoristas')  { renderMotoristas(); if(msToken) carregarVeiculosMotoristasOneDrive().catch(()=>{}); }
+  if(name==='veiculos')    { renderVeiculos(); }
+  if(name==='motoristas')  { renderMotoristas(); }
+}
+
+function updateBadges() {
+  document.getElementById('badge-hist').textContent = dadosFretes.length;
+  document.getElementById('badge-prop').textContent = dadosPropriedades.length;
+  document.getElementById('badge-vei').textContent  = dadosVeiculos.length;
+  document.getElementById('badge-mot').textContent  = dadosMotoristas.length;
+}
+function updateSelects() {
+  // Select motorista no frete
+  const sm = document.getElementById('f-motorista');
+  const prevM = sm?.value;
+  sm.innerHTML = '<option value="">— Selecione —</option>' + dadosMotoristas.filter(m=>m.status==='Ativo').map(m=>`<option value="${m.nome}">${m.nome}</option>`).join('');
+  if(prevM) sm.value = prevM;
+
+  // Select veículo no frete
+  const sv = document.getElementById('f-veiculo');
+  const prevV = sv?.value;
+  sv.innerHTML = '<option value="">— Selecione —</option>' + dadosVeiculos.filter(v=>v.status==='Disponível'||v.status==='Em uso').map((v,i)=>`<option value="${i}">${v.placa} — ${v.nome} (${v.capSacas} sc)</option>`).join('');
+  if(prevV) sv.value = prevV;
+
+  // Select propriedade de ORIGEM no frete
+  const sp = document.getElementById('f-prop-sel');
+  sp.innerHTML = '<option value="">— Selecione ou preencha manualmente —</option>'
+    + dadosPropriedades.map((p,i)=>`<option value="${i}">${p.apelido||p.nome} — ${p.produtor}</option>`).join('');
+
+  // Select propriedade de DESTINO no frete
+  const sd = document.getElementById('f-destino-prop');
+  if(sd) {
+    sd.innerHTML = '<option value="">— Selecione uma propriedade cadastrada (opcional) —</option>'
+      + dadosPropriedades.map((p,i)=>`<option value="${i}">${p.apelido||p.nome} — ${p.municipio||p.produtor}</option>`).join('');
+  }
+
+  // Select motorista padrão no modal veículo
+  const svmp = document.getElementById('v-motorista-pad');
+  if(svmp) svmp.innerHTML = '<option value="">— Nenhum —</option>' + dadosMotoristas.map(m=>`<option value="${m.nome}">${m.nome}</option>`).join('');
+}
+
+// =====================================================================
+// TOKEN / AUTH
+// =====================================================================
+function salvarToken(t,exp){const at=Date.now()+((parseInt(exp)||3600)-120)*1000;localStorage.setItem(TOKEN_KEY,t);localStorage.setItem(TOKEN_EXP,at.toString());}
+function tokenSalvo(){const t=localStorage.getItem(TOKEN_KEY),e=parseInt(localStorage.getItem(TOKEN_EXP)||'0');return(t&&e>Date.now())?t:null;}
+function agendarRefresh(exp){if(refreshTimer)clearTimeout(refreshTimer);refreshTimer=setTimeout(silentRefresh,Math.max(((parseInt(exp)||3600)-180)*1000,10000));}
+function silentRefresh(){const f=document.createElement('iframe');f.style.display='none';f.src=`https://login.microsoftonline.com/${tenantId}/oauth2/v2.0/authorize?client_id=${clientId}&response_type=token&redirect_uri=${encodeURIComponent(REDIRECT_URI)}&scope=${encodeURIComponent(MS_SCOPES)}&prompt=none&login_hint=${encodeURIComponent(LOGIN_HINT)}&response_mode=fragment`;f.onload=()=>{try{const p=new URLSearchParams(f.contentWindow.location.hash.substring(1)),t=p.get('access_token'),exp=p.get('expires_in');if(t){msToken=t;salvarToken(t,exp);agendarRefresh(exp);}}catch(e){}document.body.removeChild(f);};document.body.appendChild(f);}
+
+function checkToken(){
+  const p=new URLSearchParams(window.location.hash.substring(1));
+  const t=p.get('access_token'),exp=p.get('expires_in');
+  if(t){msToken=t;salvarToken(t,exp);agendarRefresh(exp);window.history.replaceState({},' ',' ');onConnected();carregarOneDrive().catch(()=>{});carregarPropsOneDrive().catch(()=>{});carregarVeiculosMotoristasOneDrive().catch(()=>{});return;}
+  const saved=tokenSalvo();
+  if(saved){msToken=saved;fetch('https://graph.microsoft.com/v1.0/me',{headers:{Authorization:'Bearer '+saved}}).then(r=>{if(r.ok){const rem=Math.max(0,(parseInt(localStorage.getItem(TOKEN_EXP)||'0')-Date.now())/1000);agendarRefresh(rem);onConnected();}else{msToken=null;localStorage.removeItem(TOKEN_KEY);localStorage.removeItem(TOKEN_EXP);setDesconectado();}}).catch(()=>{msToken=saved;onConnected();});}
+  else setDesconectado();
+}
+function handleMSAuth(){if(msToken){if(!confirm('Deseja desconectar a conta Microsoft?'))return;localStorage.removeItem(TOKEN_KEY);localStorage.removeItem(TOKEN_EXP);if(refreshTimer)clearTimeout(refreshTimer);msToken=null;setDesconectado();toastOk('Desconectado.');return;}window.location.href=`https://login.microsoftonline.com/${tenantId}/oauth2/v2.0/authorize?client_id=${clientId}&response_type=token&redirect_uri=${encodeURIComponent(REDIRECT_URI)}&scope=${encodeURIComponent(MS_SCOPES)}&response_mode=fragment&login_hint=${encodeURIComponent(LOGIN_HINT)}&prompt=login`;}
+function onConnected(){const b=document.getElementById('btn-ms');b.className='btn-ms connected';b.innerHTML='<svg width="14" height="14" viewBox="0 0 21 21"><rect x="1" y="1" width="9" height="9" fill="#f25022"/><rect x="11" y="1" width="9" height="9" fill="#7fba00"/><rect x="1" y="11" width="9" height="9" fill="#00a4ef"/><rect x="11" y="11" width="9" height="9" fill="#ffb900"/></svg> Conectado';const s=document.getElementById('cfg-status');if(s){s.textContent='Conectado ao Microsoft 365 ✓';s.style.color='#2E7D32';}setSinc('ok','Conectado');document.getElementById('form-lock').style.display='none';}
+function setDesconectado(){const b=document.getElementById('btn-ms');b.className='btn-ms';b.innerHTML='<svg width="14" height="14" viewBox="0 0 21 21"><rect x="1" y="1" width="9" height="9" fill="#f25022"/><rect x="11" y="1" width="9" height="9" fill="#7fba00"/><rect x="1" y="11" width="9" height="9" fill="#00a4ef"/><rect x="11" y="11" width="9" height="9" fill="#ffb900"/></svg> Conectar Microsoft';const s=document.getElementById('cfg-status');if(s){s.textContent='Desconectado.';s.style.color='#C62828';}setSinc('error','Desconectado');document.getElementById('form-lock').style.display='flex';}
+function setSinc(tipo,msg){const w=document.getElementById('sync-wrap'),d=document.getElementById('sync-dot'),t=document.getElementById('sync-txt');if(w)w.style.display='flex';if(d)d.className='sync-dot '+tipo;if(t)t.textContent=msg;}
+
+// =====================================================================
+// FORMULÁRIO DE FRETE — CÁLCULOS DE CARGA
+// =====================================================================
+function onTipoChange() {
+  const tipo = document.getElementById('f-tipo').value;
+  document.getElementById('g-sacas').style.display    = (tipo==='beneficiado'||tipo==='escolha') ? 'block' : 'none';
+  document.getElementById('g-tambores').style.display = tipo==='cereja'  ? 'block' : 'none';
+  document.getElementById('g-arrobas').style.display  = tipo==='coco'    ? 'block' : 'none';
+  document.getElementById('g-renda').style.display    = tipo==='coco'    ? 'block' : 'none';
+  document.getElementById('g-aproveit').style.display = tipo==='escolha' ? 'block' : 'none';
+  calcCarga();
+}
+
+function calcCarga() {
+  const tipo = document.getElementById('f-tipo').value;
+  const box  = document.getElementById('calc-result');
+  let html = '', pesoTotalKg = 0, sacasEquiv = 0, volumeObs = '';
+
+  // Lê o campo de carga total kg (entrada manual)
+  const cargaKgManual = parseFloat(document.getElementById('f-carga-kg').value)||0;
+
+  if(tipo === 'beneficiado') {
+    const sacas = parseFloat(document.getElementById('f-sacas').value)||0;
+    pesoTotalKg = sacas > 0 ? sacas * 60 : cargaKgManual;
+    sacasEquiv  = pesoTotalKg / 60;
+    // Preenche kg automaticamente se veio de sacas
+    if(sacas > 0 && !cargaKgManual) document.getElementById('f-carga-kg').value = pesoTotalKg;
+    if(sacas > 0) html = `
+      <div class="calc-item"><span class="calc-lbl">Sacas</span><span class="calc-val">${sacas.toLocaleString('pt-BR')}</span><span class="calc-unit">sc 60 kg</span></div>
+      <div class="calc-item"><span class="calc-lbl">Peso Total</span><span class="calc-val">${pesoTotalKg.toLocaleString('pt-BR')}</span><span class="calc-unit">kg</span></div>`;
+    else if(cargaKgManual > 0) { sacasEquiv = cargaKgManual/60; html=`<div class="calc-item"><span class="calc-lbl">Sacas est.</span><span class="calc-val">${sacasEquiv.toFixed(1)}</span><span class="calc-unit">sc</span></div>`; }
+  }
+  else if(tipo === 'escolha') {
+    const sacas   = parseFloat(document.getElementById('f-sacas').value)||0;
+    const aproveit= parseFloat(document.getElementById('f-aproveit').value)||0;
+    pesoTotalKg   = sacas > 0 ? sacas * 60 : cargaKgManual;
+    sacasEquiv    = pesoTotalKg / 60;
+    if(sacas > 0 && !cargaKgManual) document.getElementById('f-carga-kg').value = pesoTotalKg;
+    const volExtra = aproveit>0 ? (100/aproveit).toFixed(2) : '—';
+    if(sacas > 0) {
+      html = `
+        <div class="calc-item"><span class="calc-lbl">Sacas Escolha</span><span class="calc-val">${sacas.toLocaleString('pt-BR')}</span><span class="calc-unit">sc 60 kg</span></div>
+        <div class="calc-item"><span class="calc-lbl">Peso Total</span><span class="calc-val">${pesoTotalKg.toLocaleString('pt-BR')}</span><span class="calc-unit">kg</span></div>`;
+      if(aproveit>0) html += `<div class="calc-item"><span class="calc-lbl">Fator de Volume</span><span class="calc-val">${volExtra}×</span><span class="calc-unit">vs beneficiado</span></div>`;
+      if(aproveit>0&&aproveit<60) volumeObs=`⚠️ Aproveitamento baixo (${aproveit}%) — carga muito volumosa. Confirme a capacidade do veículo.`;
+      else if(aproveit>0&&aproveit<80) volumeObs=`ℹ️ Aproveitamento ${aproveit}% — volume maior que beneficiado. Atenção à capacidade.`;
+    }
+  }
+  else if(tipo === 'cereja') {
+    const tambores = parseFloat(document.getElementById('f-tambores').value)||0;
+    const litros   = tambores * 20;
+    sacasEquiv     = litros / 550;
+    pesoTotalKg    = cargaKgManual > 0 ? cargaKgManual : sacasEquiv * 60;
+    if(tambores > 0) html = `
+      <div class="calc-item"><span class="calc-lbl">Tambores (20L)</span><span class="calc-val">${tambores.toLocaleString('pt-BR')}</span><span class="calc-unit">tambores</span></div>
+      <div class="calc-item"><span class="calc-lbl">Volume Total</span><span class="calc-val">${litros.toLocaleString('pt-BR')}</span><span class="calc-unit">litros</span></div>
+      <div class="calc-item"><span class="calc-lbl">Sacas Benef. Est.</span><span class="calc-val">${sacasEquiv.toFixed(1)}</span><span class="calc-unit">sc (550L/sc)</span></div>
+      <div class="calc-item"><span class="calc-lbl">Peso Est.</span><span class="calc-val">${pesoTotalKg.toFixed(0)}</span><span class="calc-unit">kg</span></div>`;
+  }
+  else if(tipo === 'coco') {
+    const arrobas = parseFloat(document.getElementById('f-arrobas').value)||0;
+    const renda   = parseFloat(document.getElementById('f-renda').value)||0;
+    const kgTotal = arrobas > 0 ? arrobas * 30 : cargaKgManual;
+    const sacasBenef = renda > 0 ? (kgTotal * renda / 100) / 60 : 0;
+    pesoTotalKg    = kgTotal;
+    sacasEquiv     = sacasBenef;
+    if(arrobas > 0 && !cargaKgManual) document.getElementById('f-carga-kg').value = kgTotal;
+    if(arrobas > 0 || kgTotal > 0) {
+      html = `
+        <div class="calc-item"><span class="calc-lbl">Arrobas (30 kg)</span><span class="calc-val">${arrobas.toLocaleString('pt-BR')}</span><span class="calc-unit">@</span></div>
+        <div class="calc-item"><span class="calc-lbl">Peso Total</span><span class="calc-val">${kgTotal.toLocaleString('pt-BR')}</span><span class="calc-unit">kg</span></div>`;
+      if(renda>0) html += `<div class="calc-item"><span class="calc-lbl">Sacas Benef. Est.</span><span class="calc-val">${sacasBenef.toFixed(1)}</span><span class="calc-unit">sc · renda ${renda}%</span></div>`;
+      else html += `<div class="calc-item"><span class="calc-lbl">Sacas Benef. Est.</span><span class="calc-val">—</span><span class="calc-unit">informe a renda</span></div>`;
+    }
+  }
+
+  box.style.display = html ? 'block' : 'none';
+  if(html) box.innerHTML = `<div class="calc-box"><div class="calc-box-title">Estimativa de Carga</div><div class="calc-items">${html}</div>${volumeObs?'<div style="margin-top:.75rem;font-size:12px;color:var(--orange)">'+volumeObs+'</div>':''}</div>`;
+
+  verificarCapacidade(sacasEquiv, pesoTotalKg);
+}
+
+function verificarCapacidade(sacasEquiv, pesoKg) {
+  const avisoBox = document.getElementById('cap-aviso');
+  const idx = parseInt(document.getElementById('f-veiculo').value);
+  if(isNaN(idx) || !dadosVeiculos[idx]) { avisoBox.style.display='none'; return; }
+  const v = dadosVeiculos[idx];
+  const excedeSacas = sacasEquiv > 0 && v.capSacas > 0 && sacasEquiv > v.capSacas;
+  const excedeKg    = pesoKg > 0 && v.capKg > 0 && pesoKg > v.capKg;
+  if(excedeSacas || excedeKg) {
+    avisoBox.style.display='block';
+    avisoBox.innerHTML = `<div class="aviso-box"><span class="icon">⚠️</span><div><strong>Atenção: carga pode exceder a capacidade do veículo.</strong><br>Veículo: ${v.placa} — ${v.capSacas} sc / ${(v.capKg||0).toLocaleString('pt-BR')} kg. Carga estimada: ${sacasEquiv.toFixed(1)} sc / ${pesoKg.toFixed(0)} kg.</div></div>`;
+  } else { avisoBox.style.display='none'; }
+}
+
+function onVeiculoSelect() {
+  const idx = parseInt(document.getElementById('f-veiculo').value);
+  const box = document.getElementById('veiculo-cap-box');
+  if(isNaN(idx)||!dadosVeiculos[idx]) { box.style.display='none'; return; }
+  const v = dadosVeiculos[idx];
+  const pct = v.capKg > 0 ? 0 : 0; // será calculado ao digitar
+  box.style.display = 'block';
+  box.innerHTML = `<div class="hint-box">🚛 <strong>${v.placa}</strong> — ${v.nome} · Cap. máx: <strong>${v.capSacas} sc</strong> / ${(v.capKg||0).toLocaleString('pt-BR')} kg · Tara: ${(v.tara||0).toLocaleString('pt-BR')} kg</div>`;
+  calcCarga();
+}
+
+function sincCapVeiculo(){
+  const sc = Math.round((parseFloat(document.getElementById('v-cap-kg').value)||0)/60);
+  if(sc>0&&!document.getElementById('v-cap-sacas').value)
+    document.getElementById('v-cap-sacas').value=sc;
+}
+
+// =====================================================================
+// PROPRIEDADE SELECT NO FRETE
+// =====================================================================
+function onPropSelect() {
+  const idx = parseInt(document.getElementById('f-prop-sel').value);
+  const box = document.getElementById('prop-preview');
+  const alerta = document.getElementById('alerta-frete-duplo');
+  alerta.style.display = 'none';
+  if(isNaN(idx)) { box.style.display='none'; return; }
+  const p = dadosPropriedades[idx];
+  document.getElementById('f-produtor').value = p.produtor||'';
+  document.getElementById('f-municipio').value = p.municipio||'';
+  const temGPS = p.lat&&p.lng;
+  const nomeExib = p.apelido || p.nome;
+  box.style.display='block';
+  box.innerHTML = `<div class="gps-box ${temGPS?'ok':'sem'}">
+    <div>
+      <div style="font-size:12px;font-weight:600;color:${temGPS?'var(--green)':'var(--orange)'}">
+        ${temGPS?'📍 '+nomeExib:'⚠️ '+nomeExib+' — sem GPS cadastrado'}
+      </div>
+      ${p.comunidade?`<div style="font-size:11px;color:var(--text-mid)">🏘️ ${p.comunidade}</div>`:''}
+      ${temGPS?`<div class="gps-coords">${p.lat}, ${p.lng}</div>`:''}
+    </div>
+    ${temGPS?`<a class="btn-map" href="https://www.google.com/maps/dir/?api=1&destination=${p.lat},${p.lng}&travelmode=driving" target="_blank">🗺️ Ver Rota</a>`:''}
+  </div>
+  ${p.obs?`<div class="hint-box" style="margin-top:6px">${p.obs}</div>`:''}`;
+
+  // Alerta por COMUNIDADE — verifica fretes em aberto de propriedades da mesma comunidade
+  const comunidadeAtual = p.comunidade || '';
+  let fretesConflito = [];
+  if(comunidadeAtual) {
+    const propsMesmaComunidade = dadosPropriedades
+      .filter(pp => pp.comunidade && pp.comunidade.trim().toLowerCase() === comunidadeAtual.trim().toLowerCase());
+    const nomesConflito = new Set(propsMesmaComunidade.map(pp => pp.nome));
+    fretesConflito = dadosFretes.filter(f =>
+      nomesConflito.has(f.propNome) &&
+      (f.status==='Agendado' || f.status==='Em Rota')
+    );
+  } else {
+    fretesConflito = dadosFretes.filter(f =>
+      f.propNome === p.nome &&
+      (f.status==='Agendado' || f.status==='Em Rota')
+    );
+  }
+
+  if(fretesConflito.length > 0) {
+    const lista = fretesConflito.map(f => {
+      const df = f.data ? new Date(f.data+'T12:00:00').toLocaleDateString('pt-BR') : '—';
+      return `${df} ${f.hora||''} — ${f.motorista||'?'} — ${f.propNome||f.produtor} — ${f.tipoLabel||f.tipo||''}`;
+    }).join('<br>');
+    const msg = comunidadeAtual
+      ? `Já existe frete em aberto na comunidade <strong>${comunidadeAtual}</strong>!`
+      : `Já existe frete em aberto nesta propriedade!`;
+    alerta.style.display='block';
+    alerta.innerHTML=`<div class="aviso-box" style="background:#E3F2FD;border-color:#90CAF9;color:#0D47A1"><span class="icon">🔔</span><div><strong>${msg}</strong><br><span style="font-size:12px">${lista}</span><br><span style="font-size:12px;margin-top:4px;display:block">Considere consolidar as demandas num único frete.</span></div></div>`;
+  }
+}
+
+// Selecionar propriedade como DESTINO — preenche campo de texto e guarda GPS
+function onDestinoSelect() {
+  const idx = parseInt(document.getElementById('f-destino-prop').value);
+  const infoBox = document.getElementById('destino-gps-info');
+  if(isNaN(idx) || idx < 0) { infoBox.style.display='none'; return; }
+  const p = dadosPropriedades[idx];
+  if(!p) return;
+  const nome = p.apelido || p.nome;
+  if(p.lat && p.lng) {
+    infoBox.style.display='block';
+    infoBox.innerHTML=`<div class="gps-box ok" style="margin-top:0"><div>
+      <div style="font-size:11px;font-weight:600;color:var(--green)">📍 ${nome} — GPS registrado</div>
+      <div class="gps-coords">${p.lat}, ${p.lng}</div>
+    </div></div>`;
+  } else {
+    infoBox.style.display='block';
+    infoBox.innerHTML=`<div class="gps-box sem" style="margin-top:0">
+      <div style="font-size:11px;color:var(--orange)">⚠️ ${nome} — sem GPS cadastrado</div>
+    </div>`;
+  }
+}
+
+// Ver Rota: ORIGEM = prop. de saída (f-prop-sel), DESTINO = prop. de chegada (f-destino-prop)
+function abrirRotaDestino() {
+  const origemIdx = parseInt(document.getElementById('f-prop-sel').value);
+  const destIdx   = parseInt(document.getElementById('f-destino-prop').value);
+  const origem = (!isNaN(origemIdx) && origemIdx >= 0) ? dadosPropriedades[origemIdx] : null;
+  const dest   = (!isNaN(destIdx)   && destIdx   >= 0) ? dadosPropriedades[destIdx]   : null;
+  if(!dest)             { toastErr('Selecione uma propriedade de destino.'); return; }
+  if(!dest.lat||!dest.lng) { toastErr('A propriedade de destino não tem GPS cadastrado.'); return; }
+  const destinoParam = `${dest.lat},${dest.lng}`;
+  const origemParam  = (origem?.lat && origem?.lng) ? `${origem.lat},${origem.lng}` : '';
+  const url = origemParam
+    ? `https://www.google.com/maps/dir/?api=1&origin=${origemParam}&destination=${destinoParam}&travelmode=driving`
+    : `https://www.google.com/maps/dir/?api=1&destination=${destinoParam}&travelmode=driving`;
+  window.open(url, '_blank');
+}
+
+async function salvarFrete() {
+  if(!msToken){toastErr('Conecte ao Microsoft antes de salvar.');return;}
+  const data=document.getElementById('f-data').value;
+  const produtor=document.getElementById('f-produtor').value.trim();
+  if(!data||!produtor){alert('Informe a data e o produtor.');return;}
+  const tipo=document.getElementById('f-tipo').value;
+  const propIdx=parseInt(document.getElementById('f-prop-sel').value);
+  const prop=!isNaN(propIdx)?dadosPropriedades[propIdx]:null;
+  const veiIdx=parseInt(document.getElementById('f-veiculo').value);
+  const vei=!isNaN(veiIdx)?dadosVeiculos[veiIdx]:null;
+  const sacas=parseFloat(document.getElementById('f-sacas').value)||0;
+  const tambores=parseFloat(document.getElementById('f-tambores').value)||0;
+  const arrobas=parseFloat(document.getElementById('f-arrobas').value)||0;
+  const renda=parseFloat(document.getElementById('f-renda').value)||0;
+  const aproveit=parseFloat(document.getElementById('f-aproveit').value)||0;
+  const cargaKgManual=parseFloat(document.getElementById('f-carga-kg').value)||0;
+  let pesoEstimado=0, sacasEquiv=0;
+  if(tipo==='beneficiado'||tipo==='escolha'){pesoEstimado=sacas>0?sacas*60:cargaKgManual;sacasEquiv=pesoEstimado/60;}
+  else if(tipo==='cereja'){sacasEquiv=(tambores*20)/550;pesoEstimado=cargaKgManual||sacasEquiv*60;}
+  else if(tipo==='coco'){pesoEstimado=arrobas>0?arrobas*30:cargaKgManual;sacasEquiv=renda>0?(pesoEstimado*renda/100)/60:0;}
+  const tipoLabel={'beneficiado':'Café Beneficiado','escolha':'Café Escolha','cereja':'Café Cereja','coco':'Café em Coco'}[tipo]||tipo;
+  const destIdx = parseInt(document.getElementById('f-destino-prop').value);
+  const destProp = (!isNaN(destIdx) && destIdx >= 0) ? dadosPropriedades[destIdx] : null;
+  const destinoNome = destProp ? (destProp.apelido||destProp.nome)+(destProp.municipio?' — '+destProp.municipio:'') : '';
+  const reg={
+    id:Date.now(),data,hora:document.getElementById('f-hora').value,
+    motorista:document.getElementById('f-motorista').value,
+    veiculo:vei?vei.placa:'',veiculoNome:vei?vei.nome:'',
+    produtor,municipio:document.getElementById('f-municipio').value,
+    propNome:prop?.nome||produtor,propApelido:prop?.apelido||'',propComunidade:prop?.comunidade||'',
+    propLat:prop?.lat||'',propLng:prop?.lng||'',
+    tipo,tipoLabel,
+    sacas,tambores,arrobas,renda,aproveit,
+    cargaKg:cargaKgManual,
+    pesoEstimado:Math.round(pesoEstimado),sacasEquiv:+sacasEquiv.toFixed(2),
+    destino:destinoNome,
+    destinoLat:destProp?.lat||'',destinoLng:destProp?.lng||'',
+    km:parseInt(document.getElementById('f-km').value)||0,
+    valor:parseFloat(document.getElementById('f-valor').value)||0,
+    obs:document.getElementById('f-obs').value,
+    status:'Agendado',sinc:false
+  };
+  dadosFretes.unshift(reg); salvarLocal(); updateBadges();
+  toastOk('Frete salvo! Sincronizando...'); resetForm();
+  await sincFrete(reg);
+}
+
+function resetForm(){
+  ['f-produtor','f-municipio','f-veiculo','f-sacas','f-tambores','f-arrobas','f-renda',
+   'f-aproveit','f-carga-kg','f-km','f-valor','f-obs'].forEach(id=>{
+    const el=document.getElementById(id); if(el) el.value='';
+  });
+  document.getElementById('f-prop-sel').value='';
+  const sd=document.getElementById('f-destino-prop'); if(sd) sd.value='';
+  const gi=document.getElementById('destino-gps-info'); if(gi) gi.style.display='none';
+  document.getElementById('prop-preview').style.display='none';
+  document.getElementById('alerta-frete-duplo').style.display='none';
+  document.getElementById('calc-result').style.display='none';
+  document.getElementById('cap-aviso').style.display='none';
+  document.getElementById('veiculo-cap-box').style.display='none';
+  const h=new Date(),pad=n=>String(n).padStart(2,'0');
+  document.getElementById('f-data').value=`${h.getFullYear()}-${pad(h.getMonth()+1)}-${pad(h.getDate())}`;
+  document.getElementById('f-hora').value='07:00';
+  document.getElementById('f-tipo').value='beneficiado';
+  onTipoChange();
+}
+
+function salvarLocal(){const h=new Date(),k=`frt_${h.getFullYear()}_${h.getMonth()}`;try{localStorage.setItem(k,JSON.stringify(dadosFretes));}catch(e){}}
+function salvarPropsLocal(){try{localStorage.setItem('frt_props',JSON.stringify(dadosPropriedades));}catch(e){}}
+function salvarVeiculosLocal(){try{localStorage.setItem('frt_veiculos',JSON.stringify(dadosVeiculos));}catch(e){}}
+function salvarMotoristasLocal(){try{localStorage.setItem('frt_motoristas',JSON.stringify(dadosMotoristas));}catch(e){}}
+
+// =====================================================================
+// AGENDAMENTOS — CALENDÁRIO + LISTA
+// =====================================================================
+function renderAgenda(){
+  renderSummary();
+  if(calView==='cal') renderCal();
+  else renderLista();
+}
+function setView(v){
+  calView=v;
+  document.getElementById('view-cal').style.display=v==='cal'?'block':'none';
+  document.getElementById('view-list').style.display=v==='list'?'block':'none';
+  document.getElementById('btn-view-cal').classList.toggle('active',v==='cal');
+  document.getElementById('btn-view-list').classList.toggle('active',v==='list');
+  if(v==='cal') renderCal(); else renderLista();
+}
+
+function renderSummary(){
+  const total=dadosFretes.length,sacas=dadosFretes.reduce((s,f)=>s+(f.sacasEquiv||f.sacas||0),0),
+        valor=dadosFretes.reduce((s,f)=>s+(f.valor||0),0),em=dadosFretes.filter(f=>f.status==='Em Rota').length;
+  document.getElementById('summary-row').innerHTML=`
+    <div class="summary-card"><div class="summary-lbl">Total</div><div class="summary-val">${total}</div><div class="summary-sub">fretes no mês</div></div>
+    <div class="summary-card green"><div class="summary-lbl">Sacas Est.</div><div class="summary-val">${sacas.toLocaleString('pt-BR',{maximumFractionDigits:0})}</div><div class="summary-sub">sc beneficiadas</div></div>
+    <div class="summary-card blue"><div class="summary-lbl">Em Rota</div><div class="summary-val">${em}</div><div class="summary-sub">agora</div></div>
+    <div class="summary-card gold"><div class="summary-lbl">Valor Total</div><div class="summary-val">R$${valor.toLocaleString('pt-BR',{minimumFractionDigits:0})}</div><div class="summary-sub">neste mês</div></div>`;
+}
+
+function mudarMesCal(dir){
+  if(dir===0){const h=new Date();calAno=h.getFullYear();calMes=h.getMonth();}
+  else{calMes+=dir;if(calMes<0){calMes=11;calAno--;}else if(calMes>11){calMes=0;calAno++;}}
+  renderCal();
+}
+
+function renderCal(){
+  document.getElementById('cal-titulo').textContent=MESES[calMes]+' '+calAno;
+  // Dias da semana
+  document.getElementById('cal-dow').innerHTML=DIAS_SEMANA.map(d=>`<div class="cal-dow">${d}</div>`).join('');
+  const primeiro=new Date(calAno,calMes,1).getDay();
+  const diasMes=new Date(calAno,calMes+1,0).getDate();
+  const hoje=new Date();
+  const pillE={'Agendado':'ag','Em Rota':'er','Concluído':'co','Cancelado':'ca'};
+  let cells='';
+  // Dias do mês anterior
+  for(let i=0;i<primeiro;i++){
+    const dm=new Date(calAno,calMes,-(primeiro-1-i));
+    cells+=`<div class="cal-day outro-mes"><span class="cal-day-num">${dm.getDate()}</span></div>`;
+  }
+  for(let d=1;d<=diasMes;d++){
+    const dataStr=`${calAno}-${String(calMes+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+    const fretesDia=dadosFretes.filter(f=>f.data===dataStr);
+    const isHoje=d===hoje.getDate()&&calMes===hoje.getMonth()&&calAno===hoje.getFullYear();
+    const evs=fretesDia.slice(0,3).map(f=>`<div class="cal-evento ${pillE[f.status]||'ag'}" title="${f.propNome||f.produtor}">${f.hora||''} ${(f.propNome||f.produtor||'').substring(0,12)}</div>`).join('');
+    const extra=fretesDia.length>3?`<div style="font-size:9px;color:var(--text-light)">+${fretesDia.length-3}</div>`:'';
+    cells+=`<div class="cal-day${isHoje?' hoje':''}${fretesDia.length?' tem-frete':''}" onclick="calDiaClick('${dataStr}',${d})">
+      <span class="cal-day-num">${d}</span>${evs}${extra}
+    </div>`;
+  }
+  // Completar última semana
+  const total=primeiro+diasMes, resto=(7-total%7)%7;
+  for(let i=1;i<=resto;i++) cells+=`<div class="cal-day outro-mes"><span class="cal-day-num">${i}</span></div>`;
+  document.getElementById('cal-body').innerHTML=cells;
+  document.getElementById('cal-dia-detalhe').style.display='none';
+}
+
+function calDiaClick(dataStr,dia){
+  const fretesDia=dadosFretes.filter(f=>f.data===dataStr);
+  const box=document.getElementById('cal-dia-detalhe');
+  if(!fretesDia.length){box.style.display='none';return;}
+  const df=new Date(dataStr+'T12:00:00').toLocaleDateString('pt-BR',{weekday:'long',day:'numeric',month:'long'});
+  const pillMap={'Agendado':'pill-agendado','Em Rota':'pill-em-rota','Concluído':'pill-concluido','Cancelado':'pill-cancelado'};
+  box.style.display='block';
+  box.innerHTML=`<div class="card" style="margin-bottom:0;border-color:var(--cafe-light)">
+    <div class="section-title">${df} — ${fretesDia.length} frete(s)</div>
+    <div class="hist-list">
+      ${fretesDia.map(f=>{
+        const temGPS=f.propLat&&f.propLng;
+        return `<div class="hist-item" style="grid-template-columns:1fr auto;cursor:pointer" onclick="verDetalhe(${f.id})">
+          <div>
+            <div class="hi-title">${f.propNome||f.produtor||'—'} <span style="font-size:11px;color:var(--text-light)">· ${f.hora||''}</span></div>
+            <div class="hi-sub">🚛 ${f.motorista||'—'} ${f.veiculo?'<span class="placa">'+f.veiculo+'</span>':''}</div>
+            <div class="hi-sub">${f.tipoLabel||f.tipo||''} ${f.sacas?'· '+f.sacas+' sc':f.arrobas?'· '+f.arrobas+' @':f.tambores?'· '+f.tambores+' tb':''} ${f.destino?'→ '+f.destino:''}</div>
+          </div>
+          <div style="display:flex;flex-direction:column;align-items:flex-end;gap:5px">
+            <span class="pill ${pillMap[f.status]||'pill-agendado'}">${f.status}</span>
+            ${temGPS?`<a href="https://www.google.com/maps/dir/?api=1&destination=${f.propLat},${f.propLng}&travelmode=driving" target="_blank" onclick="event.stopPropagation()" class="btn-map" style="font-size:11px;padding:5px 9px">🗺️ Rota</a>`:''}
+          </div>
+        </div>`;
+      }).join('')}
+    </div>
+  </div>`;
+}
+
+function renderLista(){
+  const filtro=(document.getElementById('filtro-status')?.value||'');
+  const busca=(document.getElementById('filtro-busca')?.value||'').toLowerCase();
+  let lista=[...dadosFretes].filter(f=>{
+    if(filtro&&f.status!==filtro)return false;
+    if(busca&&!(f.propNome||f.produtor||'').toLowerCase().includes(busca))return false;
+    return true;
+  }).sort((a,b)=>(b.data+b.hora).localeCompare(a.data+a.hora));
+  const cont=document.getElementById('hist-container');
+  if(!lista.length){cont.innerHTML='<div class="empty"><div class="empty-icon">🚛</div><p>Nenhum frete encontrado.</p></div>';return;}
+  const pm={'Agendado':'pill-agendado','Em Rota':'pill-em-rota','Concluído':'pill-concluido','Cancelado':'pill-cancelado'};
+  cont.innerHTML='<div class="hist-list">'+lista.map(f=>{
+    const df=f.data?new Date(f.data+'T12:00:00').toLocaleDateString('pt-BR'):'—';
+    const tGPS=f.propLat&&f.propLng;
+    const placa=f.veiculo?`<span class="placa">${f.veiculo}</span>`:'';
+    return `<div class="hist-item" style="grid-template-columns:60px 1fr auto" onclick="verDetalhe(${f.id})">
+      <div><div class="hi-data">${df}</div><div class="hi-hora">${f.hora||''}</div></div>
+      <div>
+        <div class="hi-title">${f.propNome||f.produtor||'—'}</div>
+        <div class="hi-sub">🚛 ${f.motorista||'—'} ${placa}</div>
+        <div class="hi-sub">${f.tipoLabel||''} ${f.sacas?'· '+f.sacas+' sc':f.arrobas?'· '+f.arrobas+' @':f.tambores?'· '+f.tambores+' tb':''} ${f.destino?'→ '+f.destino:''}</div>
+      </div>
+      <div style="display:flex;flex-direction:column;align-items:flex-end;gap:5px">
+        <span class="pill ${pm[f.status]||'pill-agendado'}">${f.status}</span>
+        ${tGPS?`<a href="https://www.google.com/maps/dir/?api=1&destination=${f.propLat},${f.propLng}&travelmode=driving" target="_blank" onclick="event.stopPropagation()" class="btn-map" style="font-size:11px;padding:5px 9px">🗺️ Rota</a>`:''}
+        <span style="font-size:10px">${f.sinc?'🟢':'🟡'}</span>
+      </div>
+    </div>`;
+  }).join('')+'</div>';
+}
+
+// =====================================================================
+// DETALHE FRETE
+// =====================================================================
+function verDetalhe(id){
+  const f=dadosFretes.find(x=>x.id===id);if(!f)return;
+  freteDetalheId=id;
+  const df=f.data?new Date(f.data+'T12:00:00').toLocaleDateString('pt-BR'):'—';
+  document.getElementById('mf-title').textContent=f.propNome||f.produtor||'Frete';
+  const pm={'Agendado':'pill-agendado','Em Rota':'pill-em-rota','Concluído':'pill-concluido','Cancelado':'pill-cancelado'};
+  const tGPS=f.propLat&&f.propLng;
+  // Informações de carga
+  let cargaInfo='—';
+  if(f.tipo==='beneficiado'||f.tipo==='escolha') cargaInfo=`${f.sacas||0} sc (${(f.pesoEstimado||0).toLocaleString('pt-BR')} kg)${f.aproveit?` · Aprov. ${f.aproveit}%`:''}`;
+  else if(f.tipo==='cereja') cargaInfo=`${f.tambores||0} tambores · ~${(f.sacasEquiv||0).toFixed(1)} sc est.`;
+  else if(f.tipo==='coco') cargaInfo=`${f.arrobas||0} @ · ${(f.pesoEstimado||0).toLocaleString('pt-BR')} kg${f.renda?` · renda ${f.renda}%`:''}${f.sacasEquiv?` · ~${f.sacasEquiv} sc`:''}`; 
+  const rows=[
+    ['Data / Hora',df+(f.hora?' às '+f.hora:'')],
+    ['Motorista',f.motorista||'—'],
+    ['Veículo',f.veiculo?`${f.veiculo} — ${f.veiculoNome||''}`.trim():'—'],
+    ['Produtor',f.produtor||'—'],
+    ['Município',f.municipio||'—'],
+    ['Tipo de Café',f.tipoLabel||f.tipo||'—'],
+    ['Carga',cargaInfo],
+    ['Destino',f.destino||'—'],
+    ['Distância Est.',f.km?f.km+' km':'—'],
+    ['NF / Ticket',f.nf||'—'],
+    ['Peso na Balança',f.pesoBalanca?f.pesoBalanca.toLocaleString('pt-BR')+' kg':'—'],
+    ['Valor',f.valor?'R$ '+f.valor.toFixed(2).replace('.',','):'—'],
+    ['Obs.',f.obs||'—'],
+    ['Status',f.status||'—'],
+    ['Sincronizado',f.sinc?'Sim ✓':'Pendente 🟡'],
+  ];
+  // Botões GPS
+  const gpsBtns = tGPS ? `
+    <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:1rem">
+      <a class="btn-map" href="https://www.google.com/maps/dir/?api=1&destination=${f.propLat},${f.propLng}&travelmode=driving" target="_blank">🗺️ Abrir Rota</a>
+      <a class="btn-map-pin" href="https://www.google.com/maps/search/?api=1&query=${f.propLat},${f.propLng}" target="_blank">📍 Ver Localização</a>
+    </div>` : '';
+  document.getElementById('mf-body').innerHTML=
+    gpsBtns
+    +`<span class="pill ${pm[f.status]||'pill-agendado'}" style="margin-bottom:10px;display:inline-flex">${f.status}</span>`
+    +rows.map(([k,v])=>`<div class="modal-row"><span>${k}</span><span>${v}</span></div>`).join('');
+  // Botões de ação e compartilhamento
+  let btns=`<button class="btn btn-secondary" onclick="closeModal('frete')" style="flex:1">Fechar</button>`;
+  if(f.status==='Agendado') btns+=`<button class="btn btn-green" onclick="mudarStatus(${f.id},'Em Rota')" style="flex:1">▶ Iniciar</button>`;
+  if(f.status==='Em Rota')  btns+=`<button class="btn btn-primary" onclick="mudarStatus(${f.id},'Concluído')" style="flex:1">✓ Concluir</button>`;
+  if(f.status!=='Cancelado'&&f.status!=='Concluído') btns+=`<button class="btn btn-danger btn-sm" onclick="mudarStatus(${f.id},'Cancelado')">✕</button>`;
+  btns+=`<button class="btn btn-wa btn-sm" onclick="compartilharWA(${f.id})">WhatsApp</button>`;
+  btns+=`<button class="btn btn-pdf btn-sm" onclick="compartilharPDF(${f.id})">PDF</button>`;
+  document.getElementById('mf-foot').innerHTML=btns;
+  document.getElementById('modal-frete').classList.add('open');
+}
+
+function mudarStatus(id,novoStatus){
+  const f=dadosFretes.find(x=>x.id===id);if(!f)return;
+  f.status=novoStatus;f.sinc=false;salvarLocal();closeModal('frete');renderAgenda();
+  toastOk('Status: '+novoStatus);if(msToken)sincFrete(f).catch(()=>{});
+}
+
+// =====================================================================
+// COMPARTILHAMENTO
+// =====================================================================
+function textoFrete(f){
+  const df=f.data?new Date(f.data+'T12:00:00').toLocaleDateString('pt-BR'):'—';
+  let carga='';
+  if(f.tipo==='beneficiado'||f.tipo==='escolha')carga=`${f.sacas||0} sacas (${(f.pesoEstimado||0).toLocaleString('pt-BR')} kg)${f.aproveit?` · Aprov. ${f.aproveit}%`:''}`;
+  else if(f.tipo==='cereja')carga=`${f.tambores||0} tambores · ~${(f.sacasEquiv||0).toFixed(1)} sc est.`;
+  else if(f.tipo==='coco')carga=`${f.arrobas||0} arrobas · ${(f.pesoEstimado||0).toLocaleString('pt-BR')} kg${f.renda?` · renda ${f.renda}%`:''}`;
+  const linhas=[
+    `🚛 *FRETE — Café Vilela*`,``,
+    `📅 *Data:* ${df}${f.hora?' às '+f.hora:''}`,
+    `👤 *Motorista:* ${f.motorista||'—'}`,
+    `🚚 *Veículo:* ${f.veiculo||'—'}`,``,
+    `🌿 *Produtor:* ${f.produtor||'—'}`,
+    `📍 *Propriedade:* ${f.propNome||'—'}`,
+    `🏙️ *Município:* ${f.municipio||'—'}`,``,
+    `☕ *Tipo:* ${f.tipoLabel||f.tipo||'—'}`,
+    `📦 *Carga:* ${carga}`,
+    `🏁 *Destino:* ${f.destino||'—'}`,
+    f.km?`📏 *Distância:* ${f.km} km`:'',
+    f.nf?`🧾 *NF/Ticket:* ${f.nf}`:'',
+    f.pesoBalanca?`⚖️ *Peso Balança:* ${f.pesoBalanca.toLocaleString('pt-BR')} kg`:'',
+    f.valor?`💰 *Valor:* R$ ${f.valor.toFixed(2).replace('.',',')}`:'',,
+    f.obs?`📝 *Obs:* ${f.obs}`:'',``,
+    `_Gestão de Fretes · Café Vilela_`,
+  ].filter(l=>l!==''&&l!==undefined);
+  // Link de rota
+  if(f.propLat&&f.propLng) linhas.splice(-1,0,`🗺️ Rota: https://www.google.com/maps/dir/?api=1&destination=${f.propLat},${f.propLng}&travelmode=driving`);
+  return linhas.join('\n');
+}
+
+function compartilharWA(id){
+  const f=dadosFretes.find(x=>x.id===id);if(!f)return;
+  const texto=textoFrete(f);
+  window.open('https://wa.me/?text='+encodeURIComponent(texto),'_blank');
+}
+
+function compartilharPDF(id){
+  const f=dadosFretes.find(x=>x.id===id);if(!f)return;
+  const df=f.data?new Date(f.data+'T12:00:00').toLocaleDateString('pt-BR'):'—';
+  let carga='';
+  if(f.tipo==='beneficiado'||f.tipo==='escolha')carga=`${f.sacas||0} sacas (${(f.pesoEstimado||0).toLocaleString('pt-BR')} kg)`;
+  else if(f.tipo==='cereja')carga=`${f.tambores||0} tambores`;
+  else if(f.tipo==='coco')carga=`${f.arrobas||0} arrobas`;
+  const linhas=[
+    ['Data / Hora',df+(f.hora?' às '+f.hora:'')],
+    ['Motorista',f.motorista||'—'],['Veículo',f.veiculo||'—'],
+    ['Produtor',f.produtor||'—'],['Município',f.municipio||'—'],
+    ['Propriedade',f.propNome||'—'],['Tipo de Café',f.tipoLabel||f.tipo||'—'],
+    ['Carga',carga],['Destino',f.destino||'—'],
+    ['Distância',f.km?f.km+' km':'—'],['NF / Ticket',f.nf||'—'],
+    ['Peso Balança',f.pesoBalanca?f.pesoBalanca.toLocaleString('pt-BR')+' kg':'—'],
+    ['Valor',f.valor?'R$ '+f.valor.toFixed(2).replace('.',','):'—'],
+    ['Status',f.status||'—'],
+  ].filter(r=>r[1]&&r[1]!=='—');
+  const gpsHtml=f.propLat&&f.propLng
+    ?`<div style="margin:16px 0;padding:10px 14px;background:#E8F5E9;border-radius:6px;font-size:12px">
+       📍 GPS: <strong>${f.propLat}, ${f.propLng}</strong> &nbsp;
+       <a href="https://www.google.com/maps/dir/?api=1&destination=${f.propLat},${f.propLng}&travelmode=driving" style="color:#1565C0">Abrir Rota</a>
+     </div>`:'';
+  const rows=linhas.map(([k,v])=>`<tr><td style="color:#9C8470;padding:7px 10px;border-bottom:1px solid #F0EBE3;width:40%">${k}</td><td style="font-weight:500;padding:7px 10px;border-bottom:1px solid #F0EBE3">${v}</td></tr>`).join('');
+  const obs=f.obs?`<div style="margin-top:12px;padding:10px 14px;background:#FFFBF0;border-left:3px solid #C9A84C;font-size:12px;color:#5C4A35">${f.obs}</div>`:'';
+  const win=window.open('','_blank');
+  win.document.write(`<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Frete — Café Vilela</title>
+  <style>*{box-sizing:border-box;margin:0;padding:0}body{font-family:'DM Sans','Segoe UI',sans-serif;background:#fff;color:#1A1209}
+  @import url('https://fonts.googleapis.com/css2?family=Playfair+Display:wght@600&family=DM+Sans:wght@400;500&display=swap');
+  @media print{.no-print{display:none}}</style></head><body>
+  <div style="max-width:520px;margin:0 auto;padding:28px 24px">
+    <div style="background:#3C2A1E;padding:18px 22px;border-radius:10px;display:flex;align-items:center;gap:12px;margin-bottom:20px">
+      <div style="font-size:26px">🚛</div>
+      <div><div style="font-family:'Playfair Display',serif;font-size:17px;color:#fff">Gestão de Fretes</div><div style="font-size:10px;color:rgba(255,255,255,0.5);margin-top:2px">CAFÉ VILELA · CAPITÓLIO — MG</div></div>
+    </div>
+    ${gpsHtml}
+    <table style="width:100%;border-collapse:collapse;font-size:13px">${rows}</table>
+    ${obs}
+    <div style="margin-top:20px;padding-top:14px;border-top:1px solid #F0EBE3;font-size:10px;color:#9C8470;text-align:center">
+      Café Vilela · Comércio e Armazém de Café Verde · contato@cafevilela.com.br
+    </div>
+    <div class="no-print" style="margin-top:16px;text-align:center">
+      <button onclick="window.print()" style="background:#3C2A1E;color:#fff;border:none;border-radius:8px;padding:10px 22px;font-size:14px;cursor:pointer">🖨️ Imprimir / Salvar PDF</button>
+    </div>
+  </div>
+  <script>setTimeout(()=>window.print(),400)<\/script>
+  </body></html>`);
+  win.document.close();
+}
+
+// =====================================================================
+// PROPRIEDADES
+// =====================================================================
+function renderProps(){
+  const cont=document.getElementById('prop-container');
+  if(!dadosPropriedades.length){cont.innerHTML='<div class="empty"><div class="empty-icon">📍</div><p>Nenhuma propriedade cadastrada.</p></div>';return;}
+  cont.innerHTML='<div class="prop-grid">'+dadosPropriedades.map((p,i)=>{
+    const tGPS=p.lat&&p.lng;
+    const nomeExib=p.apelido?`${p.nome} <span style="color:var(--text-light);font-size:11px">(${p.apelido})</span>`:p.nome;
+    return `<div class="prop-card">
+      <div class="prop-nome">${nomeExib}</div>
+      <div class="prop-produtor">👤 ${p.produtor||'—'}${p.contato&&p.contato!==p.produtor?` <span style="color:var(--text-light);font-size:11px">· contato: ${p.contato}</span>`:''}</div>
+      ${p.comunidade?`<div style="font-size:12px;color:var(--blue);margin-bottom:4px">🏘️ ${p.comunidade}</div>`:''}
+      <div style="font-size:11px;color:var(--text-light);margin-bottom:6px">🏙️ ${p.municipio||'—'}</div>
+      ${tGPS?`<div class="prop-gps">📡 ${p.lat}, ${p.lng}</div>`:`<div class="prop-sem-gps">⚠️ Sem GPS</div>`}
+      ${p.obs?`<div style="font-size:11px;color:var(--text-light);margin-bottom:6px;font-style:italic">📝 ${p.obs}</div>`:''}
+      ${p.telefone?`<div style="font-size:11px;color:var(--text-mid);margin-bottom:8px">📞 ${p.telefone}</div>`:''}
+      <div class="prop-actions">
+        ${tGPS?`<a class="btn-map" style="font-size:11px;padding:5px 9px" href="https://www.google.com/maps/dir/?api=1&destination=${p.lat},${p.lng}&travelmode=driving" target="_blank">🗺️ Rota</a>
+                <a class="btn-map-pin" style="font-size:11px;padding:5px 9px" href="https://www.google.com/maps/search/?api=1&query=${p.lat},${p.lng}" target="_blank">📍 Local</a>`:''}
+        <button class="btn btn-secondary btn-sm" onclick="editarProp(${i})">✏️</button>
+        <button class="btn btn-danger btn-sm" onclick="excluirProp(${i})">🗑</button>
+      </div>
+    </div>`;
+  }).join('')+'</div>';
+}
+
+function openPropModal(){
+  editandoPropIdx=null;
+  document.getElementById('mp-title').textContent='📍 Nova Propriedade';
+  ['p-nome','p-apelido','p-comunidade','p-municipio','p-produtor','p-telefone','p-contato','p-lat','p-lng','p-obs'].forEach(id=>{
+    const e=document.getElementById(id);if(e)e.value='';
+  });
+  document.getElementById('gps-preview').innerHTML='';
+  document.getElementById('modal-prop').classList.add('open');
+}
+
+function editarProp(idx){
+  const p=dadosPropriedades[idx]; editandoPropIdx=idx;
+  document.getElementById('mp-title').textContent='✏️ Editar Propriedade';
+  document.getElementById('p-nome').value=p.nome||'';
+  document.getElementById('p-apelido').value=p.apelido||'';
+  document.getElementById('p-comunidade').value=p.comunidade||'';
+  document.getElementById('p-municipio').value=p.municipio||'';
+  document.getElementById('p-produtor').value=p.produtor||'';
+  document.getElementById('p-telefone').value=p.telefone||'';
+  document.getElementById('p-contato').value=p.contato||'';
+  document.getElementById('p-lat').value=p.lat||'';
+  document.getElementById('p-lng').value=p.lng||'';
+  document.getElementById('p-obs').value=p.obs||'';
+  previewGPS();
+  document.getElementById('modal-prop').classList.add('open');
+}
+
+function excluirProp(idx){if(!confirm('Excluir esta propriedade?'))return;dadosPropriedades.splice(idx,1);salvarPropsLocal();updateBadges();updateSelects();renderProps();toastOk('Propriedade removida.');}
+
+async function salvarPropriedade(){
+  const nome=document.getElementById('p-nome').value.trim();
+  const produtor=document.getElementById('p-produtor').value.trim();
+  if(!nome||!produtor){alert('Informe o nome da propriedade e o produtor.');return;}
+  const prop={
+    id:editandoPropIdx!==null?dadosPropriedades[editandoPropIdx].id:Date.now(),
+    nome,
+    apelido:document.getElementById('p-apelido').value.trim(),
+    comunidade:document.getElementById('p-comunidade').value.trim(),
+    municipio:document.getElementById('p-municipio').value,
+    produtor,
+    telefone:document.getElementById('p-telefone').value,
+    contato:document.getElementById('p-contato').value.trim(),
+    lat:document.getElementById('p-lat').value.trim(),
+    lng:document.getElementById('p-lng').value.trim(),
+    obs:document.getElementById('p-obs').value,
+    sinc:false
+  };
+  if(editandoPropIdx!==null)dadosPropriedades[editandoPropIdx]=prop;else dadosPropriedades.push(prop);
+  salvarPropsLocal();updateBadges();updateSelects();renderProps();closeModal('prop');
+  toastOk('Propriedade salva! Sincronizando...');if(msToken)await sincPropriedade(prop);
+}
+function usarGPSAtual(){if(!navigator.geolocation){toastErr('Geolocalização indisponível.');return;}toastOk('Obtendo localização...');navigator.geolocation.getCurrentPosition(pos=>{document.getElementById('p-lat').value=pos.coords.latitude.toFixed(6);document.getElementById('p-lng').value=pos.coords.longitude.toFixed(6);previewGPS();toastOk('Localização obtida!');},()=>toastErr('Não foi possível obter a localização.'));}
+function previewGPS(){const lat=document.getElementById('p-lat').value.trim(),lng=document.getElementById('p-lng').value.trim(),box=document.getElementById('gps-preview');if(lat&&lng&&!isNaN(lat)&&!isNaN(lng)){box.innerHTML=`<div class="gps-box ok" style="margin-top:0"><div><div style="font-size:11px;font-weight:600;color:var(--green)">✅ Coordenadas válidas</div><div class="gps-coords">${lat}, ${lng}</div></div><a class="btn-map" style="font-size:11px;padding:5px 9px" href="https://www.google.com/maps/search/?api=1&query=${lat},${lng}" target="_blank">👁 Ver</a></div>`;}else box.innerHTML='';}
+
+// =====================================================================
+// VEÍCULOS
+// =====================================================================
+function renderVeiculos(){
+  const cont=document.getElementById('veiculos-container');
+  if(!dadosVeiculos.length){cont.innerHTML='<div class="empty"><div class="empty-icon">🚚</div><p>Nenhum veículo cadastrado.</p></div>';return;}
+  cont.innerHTML='<div class="prop-grid">'+dadosVeiculos.map((v,i)=>{
+    const pct=v.capKg?Math.min(100,Math.round((dadosFretes.filter(f=>f.status==='Em Rota'&&f.veiculo===v.placa).reduce((s,f)=>s+(f.pesoEstimado||0),0)/v.capKg)*100)):0;
+    const fc=pct>80?'alto':pct>50?'medio':'';
+    const stCor=v.status==='Disponível'?'status-ok':v.status==='Manutenção'?'status-off':'';
+    return `<div class="veiculo-card">
+      <div class="vc-placa">${v.placa}</div>
+      <div class="vc-nome">${v.nome}</div>
+      <div class="vc-info">${v.tipo||''} · <span class="${stCor}">${v.status}</span></div>
+      <div style="font-size:12px;color:var(--text-mid);margin-bottom:6px">
+        Cap. máx: <strong>${v.capSacas||'—'} sc</strong> · ${v.capKg?v.capKg.toLocaleString('pt-BR')+' kg':'—'} · Tara: ${v.tara?v.tara.toLocaleString('pt-BR')+' kg':'—'}
+      </div>
+      ${v.motoristaPad?`<div style="font-size:11px;color:var(--text-light);margin-bottom:4px">🧑 ${v.motoristaPad}</div>`:''}
+      ${v.obs?`<div style="font-size:11px;color:var(--text-light);font-style:italic;margin-bottom:6px">${v.obs}</div>`:''}
+      <div class="prop-actions">
+        <button class="btn btn-secondary btn-sm" onclick="editarVeiculo(${i})">✏️ Editar</button>
+        <button class="btn btn-danger btn-sm" onclick="excluirVeiculo(${i})">🗑</button>
+      </div>
+    </div>`;
+  }).join('')+'</div>';
+}
+function openVeiculoModal(){editandoVeiculoIdx=null;document.getElementById('mv-title').textContent='🚚 Novo Veículo';['v-placa','v-nome','v-tara','v-cap-sacas','v-cap-kg','v-obs'].forEach(id=>{const e=document.getElementById(id);if(e)e.value='';});document.getElementById('v-tipo').value='Truck';document.getElementById('v-status').value='Disponível';updateSelects();document.getElementById('modal-veiculo').classList.add('open');}
+function editarVeiculo(idx){
+  const v=dadosVeiculos[idx];editandoVeiculoIdx=idx;
+  document.getElementById('mv-title').textContent='✏️ Editar Veículo';
+  document.getElementById('v-placa').value=v.placa||'';document.getElementById('v-nome').value=v.nome||'';document.getElementById('v-tipo').value=v.tipo||'Truck';document.getElementById('v-cap-sacas').value=v.capSacas||'';document.getElementById('v-cap-kg').value=v.capKg||'';document.getElementById('v-tara').value=v.tara||'';document.getElementById('v-status').value=v.status||'Disponível';document.getElementById('v-obs').value=v.obs||'';
+  updateSelects();setTimeout(()=>{document.getElementById('v-motorista-pad').value=v.motoristaPad||'';},50);
+  document.getElementById('modal-veiculo').classList.add('open');
+}
+function excluirVeiculo(idx){if(!confirm('Excluir este veículo?'))return;dadosVeiculos.splice(idx,1);salvarVeiculosLocal();updateBadges();updateSelects();renderVeiculos();toastOk('Veículo removido.');}
+function salvarVeiculo(){
+  const placa=(document.getElementById('v-placa').value.trim()||'').toUpperCase(),nome=document.getElementById('v-nome').value.trim();
+  if(!placa||!nome){alert('Informe a placa e o modelo.');return;}
+  const capSacas=parseInt(document.getElementById('v-cap-sacas').value)||0,capKg=parseInt(document.getElementById('v-cap-kg').value)||0;
+  if(!capSacas&&!capKg){alert('Informe ao menos uma capacidade (sacas ou kg).');return;}
+  const v={id:editandoVeiculoIdx!==null?dadosVeiculos[editandoVeiculoIdx].id:Date.now(),placa,nome,tipo:document.getElementById('v-tipo').value,capSacas,capKg,tara:parseInt(document.getElementById('v-tara').value)||0,motoristaPad:document.getElementById('v-motorista-pad').value,status:document.getElementById('v-status').value,obs:document.getElementById('v-obs').value};
+  if(editandoVeiculoIdx!==null)dadosVeiculos[editandoVeiculoIdx]=v;else dadosVeiculos.push(v);
+  salvarVeiculosLocal();updateBadges();updateSelects();renderVeiculos();closeModal('veiculo');
+  toastOk('Veículo salvo! Sincronizando...');
+  if(msToken) sincVeiculo(v);
+}
+
+// =====================================================================
+// MOTORISTAS
+// =====================================================================
+function renderMotoristas(){
+  const cont=document.getElementById('motoristas-container');
+  if(!dadosMotoristas.length){cont.innerHTML='<div class="empty"><div class="empty-icon">👤</div><p>Nenhum motorista cadastrado.</p></div>';return;}
+  const fretesPorMot=id=>dadosFretes.filter(f=>f.motorista===id).length;
+  cont.innerHTML='<div class="prop-grid">'+dadosMotoristas.map((m,i)=>{
+    const ini=m.nome.split(' ').map(p=>p[0]).slice(0,2).join('').toUpperCase();
+    const stCor=m.status==='Ativo'?'status-ok':'status-off';
+    return `<div class="motorista-card">
+      <div style="display:flex;align-items:center;gap:10px;margin-bottom:8px">
+        <div class="mot-avatar">${ini}</div>
+        <div>
+          <div style="font-size:14px;font-weight:600;color:var(--cafe)">${m.nome}</div>
+          <div style="font-size:11px" class="${stCor}">${m.status}</div>
+        </div>
+      </div>
+      ${m.tel?`<div style="font-size:12px;color:var(--text-mid);margin-bottom:3px">📞 ${m.tel}</div>`:''}
+      ${m.cnh?`<div style="font-size:12px;color:var(--text-mid);margin-bottom:3px">🪪 CNH ${m.cat||''}  · ${m.cnh}${m.vcnh?' · venc. '+new Date(m.vcnh+'T12:00:00').toLocaleDateString('pt-BR'):''}</div>`:''}
+      <div style="font-size:11px;color:var(--text-light);margin-top:4px">${fretesPorMot(m.nome)} frete(s) registrado(s)</div>
+      ${m.obs?`<div style="font-size:11px;color:var(--text-light);font-style:italic;margin-top:4px">${m.obs}</div>`:''}
+      <div class="prop-actions" style="margin-top:8px">
+        ${m.tel?`<a class="btn-map" style="font-size:11px;padding:5px 9px;background:#25D366" href="https://wa.me/55${m.tel.replace(/\D/g,'')}" target="_blank">WhatsApp</a>`:''}
+        <button class="btn btn-secondary btn-sm" onclick="editarMotorista(${i})">✏️</button>
+        <button class="btn btn-danger btn-sm" onclick="excluirMotorista(${i})">🗑</button>
+      </div>
+    </div>`;
+  }).join('')+'</div>';
+}
+function openMotoristaModal(){editandoMotoristaIdx=null;document.getElementById('mm-title').textContent='👤 Novo Motorista';['m-nome','m-tel','m-cpf','m-cnh','m-vcnh','m-obs'].forEach(id=>{const e=document.getElementById(id);if(e)e.value='';});document.getElementById('m-cat').value='E';document.getElementById('m-status').value='Ativo';document.getElementById('modal-motorista').classList.add('open');}
+function editarMotorista(idx){
+  const m=dadosMotoristas[idx];editandoMotoristaIdx=idx;
+  document.getElementById('mm-title').textContent='✏️ Editar Motorista';
+  document.getElementById('m-nome').value=m.nome||'';document.getElementById('m-tel').value=m.tel||'';document.getElementById('m-cpf').value=m.cpf||'';document.getElementById('m-cnh').value=m.cnh||'';document.getElementById('m-cat').value=m.cat||'E';document.getElementById('m-vcnh').value=m.vcnh||'';document.getElementById('m-status').value=m.status||'Ativo';document.getElementById('m-obs').value=m.obs||'';
+  document.getElementById('modal-motorista').classList.add('open');
+}
+function excluirMotorista(idx){if(!confirm('Excluir este motorista?'))return;dadosMotoristas.splice(idx,1);salvarMotoristasLocal();updateBadges();updateSelects();renderMotoristas();toastOk('Motorista removido.');}
+function salvarMotorista(){
+  const nome=document.getElementById('m-nome').value.trim();if(!nome){alert('Informe o nome.');return;}
+  const m={id:editandoMotoristaIdx!==null?dadosMotoristas[editandoMotoristaIdx].id:Date.now(),nome,tel:document.getElementById('m-tel').value,cpf:document.getElementById('m-cpf').value,cnh:document.getElementById('m-cnh').value,cat:document.getElementById('m-cat').value,vcnh:document.getElementById('m-vcnh').value,status:document.getElementById('m-status').value,obs:document.getElementById('m-obs').value};
+  if(editandoMotoristaIdx!==null)dadosMotoristas[editandoMotoristaIdx]=m;else dadosMotoristas.push(m);
+  salvarMotoristasLocal();updateBadges();updateSelects();renderMotoristas();closeModal('motorista');
+  toastOk('Motorista salvo! Sincronizando...');
+  if(msToken) sincMotorista(m);
+}
+
+
+async function carregarVeiculosMotoristasOneDrive(){
+  if(!msToken)return;
+  try{
+    const raiz=odPath.normalize('NFD').replace(/[\u0300-\u036f]/g,'');
+    const enc=`${raiz}/Clientes_Propriedades.xlsx`.split('/').map(p=>encodeURIComponent(p)).join('/');
+    const ck=await fetch(`https://graph.microsoft.com/v1.0/me/drive/root:/${enc}`,{headers:{Authorization:'Bearer '+msToken}});
+    if(!ck.ok)return;
+    const fid=(await ck.json()).id;
+
+    // Carrega Veículos
+    const rowsV=await lerAbaExcel(fid,'Veiculos');
+    if(rowsV&&rowsV.length>1){
+      const novos=rowsV.slice(1).filter(r=>r[0]).map((r,i)=>({
+        id:Date.now()+i*7,sinc:true,
+        placa:String(r[0]||'').toUpperCase(),nome:r[1]||'',tipo:r[2]||'',
+        capSacas:parseInt(r[3])||0,capKg:parseInt(r[4])||0,tara:parseInt(r[5])||0,
+        motoristaPad:r[6]||'',status:r[7]||'Disponível',obs:r[8]||''
+      }));
+      const cc=new Set(novos.map(v=>v.placa));
+      dadosVeiculos=[...dadosVeiculos.filter(v=>!v.sinc&&!cc.has(v.placa)),...novos];
+      salvarVeiculosLocal(); updateBadges(); updateSelects(); renderVeiculos();
+    }
+
+    // Carrega Motoristas
+    const rowsM=await lerAbaExcel(fid,'Motoristas');
+    if(rowsM&&rowsM.length>1){
+      const novos=rowsM.slice(1).filter(r=>r[0]).map((r,i)=>({
+        id:Date.now()+i*11,sinc:true,
+        nome:r[0]||'',tel:r[1]||'',cpf:r[2]||'',cnh:r[3]||'',
+        cat:r[4]||'',vcnh:r[5]||'',status:r[6]||'Ativo',obs:r[7]||''
+      }));
+      const cc=new Set(novos.map(m=>m.nome));
+      dadosMotoristas=[...dadosMotoristas.filter(m=>!m.sinc&&!cc.has(m.nome)),...novos];
+      salvarMotoristasLocal(); updateBadges(); updateSelects(); renderMotoristas();
+    }
+  }catch(e){console.warn('Erro carregar veículos/motoristas:',e);}
+}
+
+// =====================================================================
+// CONFIG
+// =====================================================================
+function salvarCfg(){clientId=document.getElementById('cfg-client').value.trim();tenantId=document.getElementById('cfg-tenant').value.trim();localStorage.setItem('frt_client_id',clientId);localStorage.setItem('frt_tenant_id',tenantId);toastOk('Configuração salva!');}
+function salvarPath(){odPath=document.getElementById('cfg-path').value.trim()||'Fretes';localStorage.setItem('frt_od_path',odPath);toastOk('Pasta salva!');}
+
+// =====================================================================
+// ONEDRIVE — FRETES
+// =====================================================================
+
+// Baixa o arquivo Excel via Drive content endpoint e parseia com SheetJS.
+// Não usa a Workbook API — funciona sem o arquivo ter sido aberto no Excel Online.
+async function lerAbaExcel(fileId, sheetName){
+  const resp=await fetch(
+    `https://graph.microsoft.com/v1.0/me/drive/items/${fileId}/content`,
+    {headers:{Authorization:'Bearer '+msToken}}
+  );
+  if(!resp.ok) return null;
+  const buf=await resp.arrayBuffer();
+  const wb=XLSX.read(new Uint8Array(buf),{type:'array'});
+  if(!wb.SheetNames.includes(sheetName)) return null;
+  const ws=wb.Sheets[sheetName];
+  const rows=XLSX.utils.sheet_to_json(ws,{header:1,defval:''});
+  // Remove linhas completamente vazias no final
+  while(rows.length>1&&rows[rows.length-1].every(c=>c===''||c===null||c===undefined))rows.pop();
+  return rows; // [ [header...], [row1...], ... ]
+}
+
+async function carregarOneDrive(){
+  if(!msToken)return; setSinc('pending','Carregando...'); document.getElementById('hist-loading').style.display='block';
+  try{
+    const h=new Date(),ano=h.getFullYear(),mes=MESES[h.getMonth()];
+    const raiz=odPath.normalize('NFD').replace(/[\u0300-\u036f]/g,'');
+    const enc=`${raiz}/Fretes_${ano}.xlsx`.split('/').map(p=>encodeURIComponent(p)).join('/');
+    const ck=await fetch(`https://graph.microsoft.com/v1.0/me/drive/root:/${enc}`,{headers:{Authorization:'Bearer '+msToken}});
+    if(!ck.ok){setSinc('ok','Conectado');return;}
+    const fid=(await ck.json()).id;
+    const rows=await lerAbaExcel(fid,mes);
+    if(!rows||rows.length<=1){setSinc('ok','Conectado');return;}
+    const novos=[];
+    for(let i=1;i<rows.length;i++){
+      const r=rows[i];if(!r[0])continue;
+      const pt=r[0]?String(r[0]).split('/'):[];
+      const di=pt.length===3?`${pt[2]}-${pt[1].padStart(2,'0')}-${pt[0].padStart(2,'0')}`:'';
+      // Detecta formato novo (27 cols) vs antigo (26 ou menos)
+      const novo=r.length>=25;
+      novos.push({
+        id:Date.now()+i*11,data:di,
+        hora:r[1]||'',motorista:r[2]||'',veiculo:r[3]||'',veiculoNome:r[4]||'',
+        produtor:r[5]||'',municipio:r[6]||'',propNome:r[7]||'',
+        propApelido:novo?(r[8]||''):'',propComunidade:novo?(r[9]||''):'',
+        propLat:novo?(r[10]||''):(r[8]||''),propLng:novo?(r[11]||''):(r[9]||''),
+        tipoLabel:novo?(r[12]||''):(r[10]||''),tipo:novo?(r[13]||''):(r[11]||''),
+        sacas:parseFloat(novo?r[14]:r[12])||0,tambores:parseFloat(novo?r[15]:r[13])||0,
+        arrobas:parseFloat(novo?r[16]:r[14])||0,renda:parseFloat(novo?r[17]:r[15])||0,
+        aproveit:parseFloat(novo?r[18]:r[16])||0,
+        cargaKg:parseFloat(novo?r[19]:0)||0,
+        pesoEstimado:parseInt(novo?r[20]:r[17])||0,sacasEquiv:parseFloat(novo?r[21]:r[18])||0,
+        destino:novo?(r[22]||''):(r[19]||''),
+        km:parseInt(novo?r[23]:r[22])||0,
+        valor:parseFloat(novo?r[24]:r[23])||0,
+        obs:novo?(r[25]||''):(r[24]||''),
+        status:novo?(r[26]||'Concluído'):(r[25]||'Concluído'),
+        sinc:true,fromCloud:true
+      });
+    }
+    if(novos.length>0){
+      const chave=d=>`${d.data}|${d.produtor}|${d.hora}`;const cc=new Set(novos.map(chave));
+      dadosFretes=[...dadosFretes.filter(d=>!d.sinc&&!cc.has(chave(d))),...novos];
+      salvarLocal();updateBadges();
+    }
+    setSinc('ok','Sincronizado');toastOk(novos.length+' fretes carregados.');
+  }catch(e){setSinc('ok','Conectado');toastErr('Erro ao carregar: '+(e.message||''));}
+  finally{document.getElementById('hist-loading').style.display='none';renderAgenda();}
+}
+
+async function sincFrete(reg){
+  setSinc('pending','Sincronizando...');
+  try{
+    const tr=await fetch('https://graph.microsoft.com/v1.0/me',{headers:{Authorization:'Bearer '+msToken}});
+    if(!tr.ok){localStorage.removeItem(TOKEN_KEY);localStorage.removeItem(TOKEN_EXP);msToken=null;setDesconectado();throw new Error('Sessão expirada. Reconecte.');}
+    await appendFrtExcel(reg);
+    reg.sinc=true;salvarLocal();setSinc('ok','Sincronizado');toastOk('Frete sincronizado ✓');
+  }catch(e){setSinc('error','Erro');toastErr('Erro: '+(e.message||''));}
+}
+
+// ONEDRIVE — PROPRIEDADES
+async function carregarPropsOneDrive(){
+  if(!msToken)return;
+  try{
+    const raiz=odPath.normalize('NFD').replace(/[\u0300-\u036f]/g,'');
+    const enc=`${raiz}/Clientes_Propriedades.xlsx`.split('/').map(p=>encodeURIComponent(p)).join('/');
+    const ck=await fetch(`https://graph.microsoft.com/v1.0/me/drive/root:/${enc}`,{headers:{Authorization:'Bearer '+msToken}});
+    if(!ck.ok)return;
+    const fid=(await ck.json()).id;
+    const rows=await lerAbaExcel(fid,'Clientes');
+    if(!rows||rows.length<=1)return;
+    const props=[];
+    for(let i=1;i<rows.length;i++){
+      const r=rows[i];if(!r[0])continue;
+      // Detecta formato novo (10 cols com Apelido/Comunidade/Contato) vs antigo (8 cols)
+      const isNovo=rows[0]&&rows[0][1]==='Apelido';
+      props.push({
+        id:Date.now()+i*13,
+        nome:r[0]||'',
+        apelido:isNovo?(r[1]||''):'',
+        comunidade:isNovo?(r[2]||''):'',
+        produtor:isNovo?(r[3]||''):(r[1]||''),
+        contato:isNovo?(r[4]||''):'',
+        municipio:isNovo?(r[5]||''):(r[2]||''),
+        telefone:isNovo?(r[6]||''):(r[3]||''),
+        lat:isNovo?(r[7]||''):(r[4]||''),
+        lng:isNovo?(r[8]||''):(r[5]||''),
+        obs:isNovo?(r[9]||''):(r[6]||''),
+        sinc:true
+      });
+    }
+    if(props.length>0){
+      const cc=new Set(props.map(p=>p.nome+'|'+p.produtor));
+      dadosPropriedades=[...dadosPropriedades.filter(p=>!p.sinc&&!cc.has(p.nome+'|'+p.produtor)),...props];
+      salvarPropsLocal();updateBadges();updateSelects();renderProps();
+      toastOk(props.length+' propriedades carregadas.');
+    }
+  }catch(e){console.warn('Erro carregar props:',e);}
+}
+
+// =====================================================================
+// EXCEL WRITE — Workbook API (mesma arquitetura do classificação-café)
+// =====================================================================
+
+// Template XLSX mínimo válido — idêntico ao usado no classificação-café (comprovado)
+const XLSX_TMPL='UEsDBBQAAAAIALONdFy5mqGQAQEAADsCAAATAAAAW0NvbnRlbnRfVHlwZXNdLnhtbK1RyU7DMBC99yssX6vYKQeEUJIeWI7AoXzA4EwSK97kcUv69zgpi4Qo4sBpNHqrZqrtZA07YCTtXc03ouQMnfKtdn3Nn3f3xRVnlMC1YLzDmh+R+LZZVbtjQGJZ7KjmQ0rhWkpSA1og4QO6jHQ+Wkh5jb0MoEboUV6U5aVU3iV0qUizB29WjFW32MHeJHY3ZeTUJaIhzm5O3Dmu5hCC0QpSxuXBtd+CivcQkZULhwYdaJ0JXJ4LmcHzGV/Sx3yiqFtkTxDTA9hMlJORrz6OL96P4nefH7r6rtMKW6/2NksEhYjQ0oCYrBHLFBa0W/+pwsInuYzNP3f59P+oUsnl980bUEsDBBQAAAAIALONdFxdh/QutAAAACwBAAALAAAAX3JlbHMvLnJlbHONz78OgjAQBvCdp2hul4KDMYbCYkxYDT5ALcefUHpNWxXe3o5iHBwvd9/v8hXVMmv2ROdHMgLyNAOGRlE7ml7ArbnsjsB8kKaVmgwKWNFDVSbFFbUMMeOH0XoWEeMFDCHYE+deDThLn5JFEzcduVmGOLqeW6km2SPfZ9mBu08DyoSxDcvqVoCr2xxYs1r8h6euGxWeST1mNOHHl6+LKEvXYxCwaP4iN92JpjSiwGNHvilZvgFQSwMEFAAAAAgAs410XFkhbT3DAAAAKgEAAA8AAAB4bC93b3JrYm9vay54bWyNj71uwzAMhPc8hcA9kd2hKAzbWYICmds+gGrRsRCLNEilP29fOoH3TjyCuI937fEnz+4LRRNTB/WhAoc0cEx06eDj/XX/Ak5LoBhmJuzgFxWO/a79Zrl+Ml+d+Uk7mEpZGu91mDAHPfCCZJeRJYdiq1y8LoIh6oRY8uyfqurZ55AIdu7BaOQ/FB7HNOCJh1tGKg+M4ByK5dcpLQq9Adv7G13ltjgK2fK/rbq2Tus8R6sMTppkQs6xBn93+83e+q1n/wdQSwMEFAAAAAgAs410XPVgA4K3AAAALQEAABoAAAB4bC9fcmVscy93b3JrYm9vay54bWwucmVsc43PzQrCMAwH8PueouTusnkQkXW7iLCrzAcoXfaBW1ua+rG3t3gQBx48hSTkF/5F9ZwncSfPozUS8jQDQUbbdjS9hEtz2uxBcFCmVZM1JGEhhqpMijNNKsQbHkbHIiKGJQwhuAMi64Fmxal1ZOKms35WIba+R6f0VfWE2yzbof82oEyEWLGibiX4us1BNIujf3jbdaOmo9W3mUz48QUf1l95IAoRVb6nIOEzYnyXPI0qYAyJq5TlC1BLAwQUAAAACACzjXRch5PdQocAAAChAAAAGAAAAHhsL3dvcmtzaGVldHMvc2hlZXQxLnhtbD3MSw7CMAwE0H1PEXlPXVgghJJ2gzgBHMBqTFvROFEc8bk9URcsZ0bz7PAJq3lx1iWKg33bgWEZo19kcnC/XXcnMFpIPK1R2MGXFYa+se+YnzozF1MBUQdzKemMqOPMgbSNiaUuj5gDlRrzhJoyk99OYcVD1x0x0CLQN8bYrb5QIaw4/vX+B1BLAQIUAxQAAAAIALONdFy5mqGQAQEAADsCAAATAAAAAAAAAAAAAACAAQAAAABbQ29udGVudF9UeXBlc10ueG1sUEsBAhQDFAAAAAgAs410XF2H9C60AAAALAEAAAsAAAAAAAAAAAAAAIABMgEAAF9yZWxzLy5yZWxzUEsBAhQDFAAAAAgAs410XFkhbT3DAAAAKgEAAA8AAAAAAAAAAAAAAIABDwIAAHhsL3dvcmtib29rLnhtbFBLAQIUAxQAAAAIALONdFz1YAOCtwAAAC0BAAAaAAAAAAAAAAAAAACAAf8CAAB4bC9fcmVscy93b3JrYm9vay54bWwucmVsc1BLAQIUAxQAAAAIALONdFyHk91ChwAAAKEAAAAYAAAAAAAAAAAAAACAAe4DAAB4bC93b3Jrc2hlZXRzL3NoZWV0MS54bWxQSwUGAAAAAAUABQBFAQAAqwQAAAAA';
+
+function b64toAb(b64){const r=atob(b64),u=new Uint8Array(r.length);for(let i=0;i<r.length;i++)u[i]=r.charCodeAt(i);return u.buffer;}
+
+async function getOrCreateExcel(path){
+  const enc=path.split('/').map(p=>encodeURIComponent(p)).join('/');
+  const ck=await fetch(`https://graph.microsoft.com/v1.0/me/drive/root:/${enc}`,{headers:{Authorization:'Bearer '+msToken}});
+  if(ck.ok)return(await ck.json()).id;
+  const cr=await fetch(`https://graph.microsoft.com/v1.0/me/drive/root:/${enc}:/content`,{
+    method:'PUT',
+    headers:{Authorization:'Bearer '+msToken,'Content-Type':'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'},
+    body:b64toAb(XLSX_TMPL)
+  });
+  if(!cr.ok){const e=await cr.json().catch(()=>({}));throw new Error('Criar Excel: '+(e.error?.message||cr.status));}
+  const d=await cr.json();
+  await delay(4000); // aguarda indexação no OneDrive
+  return d.id;
+}
+
+async function garantirAba(fileId, nomeAba, cabecalho){
+  await delay(2000);
+  const hdrs={'Authorization':'Bearer '+msToken,'Content-Type':'application/json'};
+  // Lista abas existentes
+  const r=await fetch(`https://graph.microsoft.com/v1.0/me/drive/items/${fileId}/workbook/worksheets`,{headers:hdrs});
+  if(!r.ok){const e=await r.json().catch(()=>({}));throw new Error('Listar abas: '+r.status+' '+(e.error?.message||''));}
+  const abas=(await r.json()).value.map(s=>s.name);
+  // Cria a aba se não existir
+  if(!abas.includes(nomeAba)){
+    const cr=await fetch(`https://graph.microsoft.com/v1.0/me/drive/items/${fileId}/workbook/worksheets`,
+      {method:'POST',headers:hdrs,body:JSON.stringify({name:nomeAba})});
+    if(!cr.ok){const e=await cr.json().catch(()=>({}));throw new Error('Criar aba: '+cr.status+' '+(e.error?.message||''));}
+    await delay(3000);
+  }
+  // Insere cabeçalho se a célula A1 estiver vazia
+  await delay(1000);
+  const ck=await fetch(`https://graph.microsoft.com/v1.0/me/drive/items/${fileId}/workbook/worksheets/${encodeURIComponent(nomeAba)}/range(address='A1')`,{headers:hdrs});
+  const hd=await ck.json().catch(()=>({values:[['']]}));
+  if(!hd.values?.[0]?.[0]){
+    const cols=cabecalho.length;
+    const lc=cols<=26?String.fromCharCode(64+cols):'A'+String.fromCharCode(64+cols-26);
+    await fetch(`https://graph.microsoft.com/v1.0/me/drive/items/${fileId}/workbook/worksheets/${encodeURIComponent(nomeAba)}/range(address='A1:${lc}1')`,
+      {method:'PATCH',headers:hdrs,body:JSON.stringify({values:[cabecalho]})});
+    await delay(1500);
+  }
+}
+
+async function escreverLinha(fileId, nomeAba, linha){
+  const hdrs={'Authorization':'Bearer '+msToken,'Content-Type':'application/json'};
+  await delay(1000);
+  // usedRange para descobrir próxima linha disponível
+  const ur=await fetch(`https://graph.microsoft.com/v1.0/me/drive/items/${fileId}/workbook/worksheets/${encodeURIComponent(nomeAba)}/usedRange`,{headers:hdrs});
+  if(!ur.ok){const e=await ur.json().catch(()=>({}));throw new Error('usedRange: '+ur.status+' '+(e.error?.message||''));}
+  const nextRow=(await ur.json()).rowCount+1;
+  const cols=linha.length;
+  const lc=cols<=26?String.fromCharCode(64+cols):'A'+String.fromCharCode(64+cols-26);
+  const wr=await fetch(`https://graph.microsoft.com/v1.0/me/drive/items/${fileId}/workbook/worksheets/${encodeURIComponent(nomeAba)}/range(address='A${nextRow}:${lc}${nextRow}')`,
+    {method:'PATCH',headers:hdrs,body:JSON.stringify({values:[linha]})});
+  if(!wr.ok){const e=await wr.json().catch(()=>({}));throw new Error('Escrever linha: '+wr.status+' '+(e.error?.message||''));}
+}
+
+async function appendFrtExcel(reg){
+  const d=new Date(reg.data+'T12:00:00'),ano=d.getFullYear(),mes=MESES[d.getMonth()];
+  const raiz=odPath.normalize('NFD').replace(/[\u0300-\u036f]/g,'');
+  const fid=await getOrCreateExcel(`${raiz}/Fretes_${ano}.xlsx`);
+  const cab=['Data','Hora','Motorista','Veiculo','VeiculoNome','Produtor','Municipio','Propriedade','Apelido','Comunidade','Latitude','Longitude','TipoLabel','Tipo','Sacas','Tambores','Arrobas','Renda%','Aproveit%','CargaKg','PesoEstimado_kg','SacasEquiv','Destino','Km','Valor_R$','Observacoes','Status'];
+  await garantirAba(fid,mes,cab);
+  const df=d.toLocaleDateString('pt-BR');
+  const linha=[df,reg.hora||'',reg.motorista||'',reg.veiculo||'',reg.veiculoNome||'',reg.produtor||'',reg.municipio||'',reg.propNome||'',reg.propApelido||'',reg.propComunidade||'',reg.propLat||'',reg.propLng||'',reg.tipoLabel||'',reg.tipo||'',reg.sacas||0,reg.tambores||0,reg.arrobas||0,reg.renda||0,reg.aproveit||0,reg.cargaKg||0,reg.pesoEstimado||0,reg.sacasEquiv||0,reg.destino||'',reg.km||0,reg.valor||0,reg.obs||'',reg.status||''];
+  await escreverLinha(fid,mes,linha);
+}
+
+async function sincPropriedade(prop){
+  if(!msToken)return;
+  try{
+    const raiz=odPath.normalize('NFD').replace(/[\u0300-\u036f]/g,'');
+    const fid=await getOrCreateExcel(`${raiz}/Clientes_Propriedades.xlsx`);
+    const cab=['Propriedade','Apelido','Comunidade','Produtor','Contato','Municipio','Telefone','Latitude','Longitude','Observacoes'];
+    await garantirAba(fid,'Clientes',cab);
+    const linha=[prop.nome||'',prop.apelido||'',prop.comunidade||'',prop.produtor||'',prop.contato||'',prop.municipio||'',prop.telefone||'',prop.lat||'',prop.lng||'',prop.obs||''];
+    await escreverLinha(fid,'Clientes',linha);
+    prop.sinc=true;salvarPropsLocal();toastOk('Propriedade sincronizada ✓');
+  }catch(e){toastErr('Erro sinc. prop: '+(e.message||''));}
+}
+
+async function sincVeiculo(v){
+  if(!msToken)return;
+  try{
+    const raiz=odPath.normalize('NFD').replace(/[\u0300-\u036f]/g,'');
+    const fid=await getOrCreateExcel(`${raiz}/Clientes_Propriedades.xlsx`);
+    const cab=['Placa','Nome','Tipo','CapSacas','CapKg','Tara','MotoristaPad','Status','Observacoes'];
+    await garantirAba(fid,'Veiculos',cab);
+    const linha=[v.placa||'',v.nome||'',v.tipo||'',v.capSacas||0,v.capKg||0,v.tara||0,v.motoristaPad||'',v.status||'',v.obs||''];
+    await escreverLinha(fid,'Veiculos',linha);
+    v.sinc=true;salvarVeiculosLocal();toastOk('Veículo sincronizado ✓');
+  }catch(e){toastErr('Erro sinc. veículo: '+(e.message||''));}
+}
+
+async function sincMotorista(m){
+  if(!msToken)return;
+  try{
+    const raiz=odPath.normalize('NFD').replace(/[\u0300-\u036f]/g,'');
+    const fid=await getOrCreateExcel(`${raiz}/Clientes_Propriedades.xlsx`);
+    const cab=['Nome','Telefone','CPF','CNH','Categoria','ValidadeCNH','Status','Observacoes'];
+    await garantirAba(fid,'Motoristas',cab);
+    const linha=[m.nome||'',m.tel||'',m.cpf||'',m.cnh||'',m.cat||'',m.vcnh||'',m.status||'',m.obs||''];
+    await escreverLinha(fid,'Motoristas',linha);
+    m.sinc=true;salvarMotoristasLocal();toastOk('Motorista sincronizado ✓');
+  }catch(e){toastErr('Erro sinc. motorista: '+(e.message||''));}
+}
+
+// UTILS
+function toastOk(m){const t=document.getElementById('toast-ok');t.textContent=m;t.classList.add('show');setTimeout(()=>t.classList.remove('show'),3500);}
+function toastErr(m){const t=document.getElementById('toast-err');t.textContent=m;t.classList.add('show');setTimeout(()=>t.classList.remove('show'),5000);}
+function closeModal(id){document.getElementById('modal-'+id).classList.remove('open');}
+</script>
+</body>
+</html>
