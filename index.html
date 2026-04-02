@@ -703,7 +703,8 @@ function showScreen(name, btn) {
 }
 
 function updateBadges() {
-  document.getElementById('badge-hist').textContent = dadosFretes.length;
+  // Conta apenas fretes não cancelados (sincronizados do OneDrive + locais)
+  document.getElementById('badge-hist').textContent = dadosFretes.filter(f=>f.status!=='Cancelado').length;
   document.getElementById('badge-prop').textContent = dadosPropriedades.length;
   document.getElementById('badge-vei').textContent  = dadosVeiculos.length;
   document.getElementById('badge-mot').textContent  = dadosMotoristas.length;
@@ -1157,6 +1158,7 @@ function renderLista(){
         <span class="pill ${pm[f.status]||'pill-agendado'}">${f.status}</span>
         ${tGPS?`<a href="https://www.google.com/maps/dir/?api=1&destination=${f.propLat},${f.propLng}&travelmode=driving" target="_blank" onclick="event.stopPropagation()" class="btn-map" style="font-size:11px;padding:5px 9px">🗺️ Rota</a>`:''}
         <span style="font-size:10px">${f.sinc?'🟢':'🟡'}</span>
+        <button class="btn btn-danger btn-sm" style="font-size:11px;padding:4px 8px" onclick="event.stopPropagation();excluirFrete(${f.id})">🗑</button>
       </div>
     </div>`;
   }).join('')+'</div>';
@@ -1219,6 +1221,28 @@ function mudarStatus(id,novoStatus){
   const f=dadosFretes.find(x=>x.id===id);if(!f)return;
   f.status=novoStatus;f.sinc=false;salvarLocal();closeModal('frete');renderAgenda();
   toastOk('Status: '+novoStatus);if(msToken)sincFrete(f).catch(()=>{});
+}
+
+async function excluirFrete(id){
+  if(!confirm('Excluir este agendamento? A linha será removida do banco de dados.'))return;
+  const f=dadosFretes.find(x=>x.id===id);
+  if(!f)return;
+  // Remove localmente
+  dadosFretes=dadosFretes.filter(x=>x.id!==id);
+  salvarLocal();updateBadges();renderAgenda();
+  toastOk('Agendamento excluído.');
+  // Remove do Excel se sincronizado
+  if(msToken&&f.sinc){
+    try{
+      const d=new Date((f.data||'')+'T12:00:00');
+      if(!isNaN(d.getTime())){
+        const ano=d.getFullYear(),mes=MESES[d.getMonth()];
+        const raiz=odPath.normalize('NFD').replace(/[\u0300-\u036f]/g,'');
+        const fid=await getOrCreateExcel(`${raiz}/Fretes_${ano}.xlsx`);
+        await excluirLinhaExcel(fid,mes,f.data,f.produtor,f.hora);
+      }
+    }catch(e){toastErr('Aviso: não foi possível remover do banco: '+(e.message||''));}
+  }
 }
 
 // =====================================================================
@@ -1363,7 +1387,20 @@ function editarProp(idx){
   document.getElementById('modal-prop').classList.add('open');
 }
 
-function excluirProp(idx){if(!confirm('Excluir esta propriedade?'))return;dadosPropriedades.splice(idx,1);salvarPropsLocal();updateBadges();updateSelects();renderProps();toastOk('Propriedade removida.');}
+function excluirProp(idx){
+  if(!confirm('Excluir esta propriedade? A linha será removida do banco de dados.'))return;
+  const p=dadosPropriedades[idx];
+  dadosPropriedades.splice(idx,1);
+  salvarPropsLocal();updateBadges();updateSelects();renderProps();
+  toastOk('Propriedade removida.');
+  if(msToken&&p){
+    (async()=>{try{
+      const raiz=odPath.normalize('NFD').replace(/[\u0300-\u036f]/g,'');
+      const fid=await getOrCreateExcel(`${raiz}/Clientes_Propriedades.xlsx`);
+      await excluirLinhaExcel(fid,'Clientes',p.nome,p.produtor,null);
+    }catch(e){toastErr('Aviso: não foi possível remover do banco: '+(e.message||''));}})();
+  }
+}
 
 async function salvarPropriedade(){
   const nome=document.getElementById('p-nome').value.trim();
@@ -1424,7 +1461,20 @@ function editarVeiculo(idx){
   updateSelects();setTimeout(()=>{document.getElementById('v-motorista-pad').value=v.motoristaPad||'';},50);
   document.getElementById('modal-veiculo').classList.add('open');
 }
-function excluirVeiculo(idx){if(!confirm('Excluir este veículo?'))return;dadosVeiculos.splice(idx,1);salvarVeiculosLocal();updateBadges();updateSelects();renderVeiculos();toastOk('Veículo removido.');}
+function excluirVeiculo(idx){
+  if(!confirm('Excluir este veículo? A linha será removida do banco de dados.'))return;
+  const v=dadosVeiculos[idx];
+  dadosVeiculos.splice(idx,1);
+  salvarVeiculosLocal();updateBadges();updateSelects();renderVeiculos();
+  toastOk('Veículo removido.');
+  if(msToken&&v){
+    (async()=>{try{
+      const raiz=odPath.normalize('NFD').replace(/[\u0300-\u036f]/g,'');
+      const fid=await getOrCreateExcel(`${raiz}/Clientes_Propriedades.xlsx`);
+      await excluirLinhaExcel(fid,'Veiculos',v.placa,null,null);
+    }catch(e){toastErr('Aviso: não foi possível remover do banco: '+(e.message||''));}})();
+  }
+}
 function salvarVeiculo(){
   const placa=(document.getElementById('v-placa').value.trim()||'').toUpperCase(),nome=document.getElementById('v-nome').value.trim();
   if(!placa||!nome){alert('Informe a placa e o modelo.');return;}
@@ -1474,7 +1524,20 @@ function editarMotorista(idx){
   document.getElementById('m-nome').value=m.nome||'';document.getElementById('m-tel').value=m.tel||'';document.getElementById('m-cpf').value=m.cpf||'';document.getElementById('m-cnh').value=m.cnh||'';document.getElementById('m-cat').value=m.cat||'E';document.getElementById('m-vcnh').value=m.vcnh||'';document.getElementById('m-status').value=m.status||'Ativo';document.getElementById('m-obs').value=m.obs||'';
   document.getElementById('modal-motorista').classList.add('open');
 }
-function excluirMotorista(idx){if(!confirm('Excluir este motorista?'))return;dadosMotoristas.splice(idx,1);salvarMotoristasLocal();updateBadges();updateSelects();renderMotoristas();toastOk('Motorista removido.');}
+function excluirMotorista(idx){
+  if(!confirm('Excluir este motorista? A linha será removida do banco de dados.'))return;
+  const m=dadosMotoristas[idx];
+  dadosMotoristas.splice(idx,1);
+  salvarMotoristasLocal();updateBadges();updateSelects();renderMotoristas();
+  toastOk('Motorista removido.');
+  if(msToken&&m){
+    (async()=>{try{
+      const raiz=odPath.normalize('NFD').replace(/[\u0300-\u036f]/g,'');
+      const fid=await getOrCreateExcel(`${raiz}/Clientes_Propriedades.xlsx`);
+      await excluirLinhaExcel(fid,'Motoristas',m.nome,null,null);
+    }catch(e){toastErr('Aviso: não foi possível remover do banco: '+(e.message||''));}})();
+  }
+}
 function salvarMotorista(){
   const nome=document.getElementById('m-nome').value.trim();if(!nome){alert('Informe o nome.');return;}
   const m={id:editandoMotoristaIdx!==null?dadosMotoristas[editandoMotoristaIdx].id:Date.now(),nome,tel:document.getElementById('m-tel').value,cpf:document.getElementById('m-cpf').value,cnh:document.getElementById('m-cnh').value,cat:document.getElementById('m-cat').value,vcnh:document.getElementById('m-vcnh').value,status:document.getElementById('m-status').value,obs:document.getElementById('m-obs').value};
@@ -1709,6 +1772,42 @@ async function escreverLinha(fileId, nomeAba, linha){
   const wr=await fetch(`https://graph.microsoft.com/v1.0/me/drive/items/${fileId}/workbook/worksheets/${encodeURIComponent(nomeAba)}/range(address='A${nextRow}:${lc}${nextRow}')`,
     {method:'PATCH',headers:hdrs,body:JSON.stringify({values:[linha]})});
   if(!wr.ok){const e=await wr.json().catch(()=>({}));throw new Error('Escrever linha: '+wr.status+' '+(e.error?.message||''));}
+}
+
+// Exclui linha do Excel pelo valor da coluna A (e opcionalmente B/C para desambiguação)
+async function excluirLinhaExcel(fileId, nomeAba, valorA, valorB, valorC){
+  const hdrs={'Authorization':'Bearer '+msToken,'Content-Type':'application/json'};
+  // Baixa a aba inteira via SheetJS para encontrar a linha exata
+  const rows=await lerAbaExcel(fileId,nomeAba);
+  if(!rows||rows.length<=1)return;
+  // Formata valorA para comparação (fretes usam data dd/mm/yyyy, outros usam nome/placa)
+  const aStr=String(valorA||'').trim().toLowerCase();
+  const bStr=valorB?String(valorB).trim().toLowerCase():null;
+  const cStr=valorC?String(valorC).trim().toLowerCase():null;
+  let linhaExcel=-1;
+  for(let i=1;i<rows.length;i++){
+    const r=rows[i];
+    if(!r||!r[0])continue;
+    const ra=String(r[0]).trim().toLowerCase();
+    const rb=bStr?String(r[1]||'').trim().toLowerCase():null;
+    const rc=cStr?String(r[2]||'').trim().toLowerCase():null;
+    // Para fretes: valorA=data (dd/mm/yyyy), valorB=produtor, valorC=hora
+    // Para clientes: valorA=nome, valorB=produtor
+    // Para veículos: valorA=placa
+    // Para motoristas: valorA=nome
+    const matchA=ra===aStr||ra.startsWith(aStr);
+    const matchB=!bStr||(rb&&rb.includes(bStr));
+    const matchC=!cStr||(rc&&rc===cStr);
+    if(matchA&&matchB&&matchC){linhaExcel=i+1;break;} // +1 porque Excel é 1-indexed e row 1 é cabeçalho
+  }
+  if(linhaExcel<2)return; // não encontrado
+  // Deleta a linha via Workbook API
+  await delay(500);
+  const del=await fetch(
+    `https://graph.microsoft.com/v1.0/me/drive/items/${fileId}/workbook/worksheets/${encodeURIComponent(nomeAba)}/range(address='${linhaExcel}:${linhaExcel}')/delete`,
+    {method:'POST',headers:hdrs,body:JSON.stringify({shift:'Up'})}
+  );
+  if(!del.ok){const e=await del.json().catch(()=>({}));throw new Error('Excluir linha: '+del.status+' '+(e.error?.message||''));}
 }
 
 async function appendFrtExcel(reg){
