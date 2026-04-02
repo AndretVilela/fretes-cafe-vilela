@@ -5,7 +5,15 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <title>Gestão de Fretes — Café Vilela</title>
 <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;500;600&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
-<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script data-cfasync="false" src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script data-cfasync="false">
+// Proxy global — garante que handleMSAuth funciona antes do script principal carregar
+window._authPending=false;
+window.handleMSAuth=function(){
+  if(typeof window._handleMSAuthReal==='function') window._handleMSAuthReal();
+  else window._authPending=true;
+};
+</script>
 <style>
 *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
 :root{
@@ -275,7 +283,7 @@ body{font-family:'DM Sans',sans-serif;background:var(--cream);min-height:100vh;c
   <div class="lock-overlay" id="form-lock">
     <div style="font-size:44px">🔒</div>
     <h2>Conexão necessária</h2>
-    <p>Para registrar fretes conecte ao Microsoft 365 (contato@cafevilela.com.br).</p>
+    <p>Para registrar fretes conecte ao Microsoft 365.</p>
     <button class="btn btn-primary" style="width:auto;padding:10px 22px" onclick="handleMSAuth()">
       <svg width="15" height="15" viewBox="0 0 21 21"><rect x="1" y="1" width="9" height="9" fill="#f25022"/><rect x="11" y="1" width="9" height="9" fill="#7fba00"/><rect x="1" y="11" width="9" height="9" fill="#00a4ef"/><rect x="11" y="11" width="9" height="9" fill="#ffb900"/></svg>
       Conectar Microsoft
@@ -627,7 +635,7 @@ body{font-family:'DM Sans',sans-serif;background:var(--cream);min-height:100vh;c
 <div class="toast ok"  id="toast-ok"></div>
 <div class="toast err" id="toast-err"></div>
 
-<script>
+<script data-cfasync="false">
 'use strict';
 // =====================================================================
 // CONSTANTES
@@ -636,7 +644,7 @@ const CLIENT_ID   = 'ff4e57e2-4fc1-4b2e-8e4a-28a2df5a20c9';
 const TENANT_ID   = '9a66e204-c69d-486c-97ff-40f69be9595f';
 const REDIRECT_URI = 'https://andretvilela.github.io/fretes-cafe-vilela/';
 const MS_SCOPES   = 'Files.ReadWrite User.Read offline_access';
-const LOGIN_HINT  = 'contato@cafevilela.com.br';
+const LOGIN_HINT  = 'contato'+'@'+'cafevilela.com.br';
 const TOKEN_KEY   = 'frt_ms_token';
 const TOKEN_EXP   = 'frt_ms_token_exp';
 const MESES = ['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
@@ -755,6 +763,9 @@ function checkToken(){
   else setDesconectado();
 }
 function handleMSAuth(){if(msToken){if(!confirm('Deseja desconectar a conta Microsoft?'))return;localStorage.removeItem(TOKEN_KEY);localStorage.removeItem(TOKEN_EXP);if(refreshTimer)clearTimeout(refreshTimer);msToken=null;setDesconectado();toastOk('Desconectado.');return;}window.location.href=`https://login.microsoftonline.com/${tenantId}/oauth2/v2.0/authorize?client_id=${clientId}&response_type=token&redirect_uri=${encodeURIComponent(REDIRECT_URI)}&scope=${encodeURIComponent(MS_SCOPES)}&response_mode=fragment&login_hint=${encodeURIComponent(LOGIN_HINT)}&prompt=login`;}
+// Registra implementação real e executa se houve clique pendente antes do script carregar
+window._handleMSAuthReal=handleMSAuth;window.handleMSAuth=handleMSAuth;
+if(window._authPending){window._authPending=false;handleMSAuth();}
 function onConnected(){const b=document.getElementById('btn-ms');b.className='btn-ms connected';b.innerHTML='<svg width="14" height="14" viewBox="0 0 21 21"><rect x="1" y="1" width="9" height="9" fill="#f25022"/><rect x="11" y="1" width="9" height="9" fill="#7fba00"/><rect x="1" y="11" width="9" height="9" fill="#00a4ef"/><rect x="11" y="11" width="9" height="9" fill="#ffb900"/></svg> Conectado';const s=document.getElementById('cfg-status');if(s){s.textContent='Conectado ao Microsoft 365 ✓';s.style.color='#2E7D32';}setSinc('ok','Conectado');document.getElementById('form-lock').style.display='none';}
 function setDesconectado(){const b=document.getElementById('btn-ms');b.className='btn-ms';b.innerHTML='<svg width="14" height="14" viewBox="0 0 21 21"><rect x="1" y="1" width="9" height="9" fill="#f25022"/><rect x="11" y="1" width="9" height="9" fill="#7fba00"/><rect x="1" y="11" width="9" height="9" fill="#00a4ef"/><rect x="11" y="11" width="9" height="9" fill="#ffb900"/></svg> Conectar Microsoft';const s=document.getElementById('cfg-status');if(s){s.textContent='Desconectado.';s.style.color='#C62828';}setSinc('error','Desconectado');document.getElementById('form-lock').style.display='flex';}
 function setSinc(tipo,msg){const w=document.getElementById('sync-wrap'),d=document.getElementById('sync-dot'),t=document.getElementById('sync-txt');if(w)w.style.display='flex';if(d)d.className='sync-dot '+tipo;if(t)t.textContent=msg;}
@@ -1298,7 +1309,7 @@ function compartilharPDF(id){
     <table style="width:100%;border-collapse:collapse;font-size:13px">${rows}</table>
     ${obs}
     <div style="margin-top:20px;padding-top:14px;border-top:1px solid #F0EBE3;font-size:10px;color:#9C8470;text-align:center">
-      Café Vilela · Comércio e Armazém de Café Verde · contato@cafevilela.com.br
+      Café Vilela · Comércio e Armazém de Café Verde · (37) 9152-0020
     </div>
     <div class="no-print" style="margin-top:16px;text-align:center">
       <button onclick="window.print()" style="background:#3C2A1E;color:#fff;border:none;border-radius:8px;padding:10px 22px;font-size:14px;cursor:pointer">🖨️ Imprimir / Salvar PDF</button>
@@ -1460,7 +1471,7 @@ function renderMotoristas(){
       <div style="font-size:11px;color:var(--text-light);margin-top:4px">${fretesPorMot(m.nome)} frete(s) registrado(s)</div>
       ${m.obs?`<div style="font-size:11px;color:var(--text-light);font-style:italic;margin-top:4px">${m.obs}</div>`:''}
       <div class="prop-actions" style="margin-top:8px">
-        ${m.tel?`<a class="btn-map" style="font-size:11px;padding:5px 9px;background:#25D366" href="https://wa.me/55${m.tel.replace(/\D/g,'')}" target="_blank">WhatsApp</a>`:''}
+        ${m.tel?`<a class="btn-map" style="font-size:11px;padding:5px 9px;background:#25D366" href="https://wa.me/55${String(m.tel).replace(/\D/g,'')}" target="_blank">WhatsApp</a>`:''}
         <button class="btn btn-secondary btn-sm" onclick="editarMotorista(${i})">✏️</button>
         <button class="btn btn-danger btn-sm" onclick="excluirMotorista(${i})">🗑</button>
       </div>
@@ -1703,10 +1714,16 @@ async function garantirAba(fileId, nomeAba, cabecalho){
 async function escreverLinha(fileId, nomeAba, linha){
   const hdrs={'Authorization':'Bearer '+msToken,'Content-Type':'application/json'};
   await delay(1000);
-  // usedRange para descobrir próxima linha disponível
-  const ur=await fetch(`https://graph.microsoft.com/v1.0/me/drive/items/${fileId}/workbook/worksheets/${encodeURIComponent(nomeAba)}/usedRange`,{headers:hdrs});
-  if(!ur.ok){const e=await ur.json().catch(()=>({}));throw new Error('usedRange: '+ur.status+' '+(e.error?.message||''));}
-  const nextRow=(await ur.json()).rowCount+1;
+  // Descobre próxima linha via download+SheetJS (evita 501 do usedRange em arquivos novos)
+  let nextRow=2;
+  try{
+    const rows=await lerAbaExcel(fileId,nomeAba);
+    if(rows&&rows.length>0){
+      // Conta linhas não vazias
+      const preenchidas=rows.filter(r=>r&&r[0]!==''&&r[0]!==null&&r[0]!==undefined).length;
+      nextRow=Math.max(preenchidas,1)+1;
+    }
+  }catch(e){nextRow=2;}
   const cols=linha.length;
   const lc=cols<=26?String.fromCharCode(64+cols):'A'+String.fromCharCode(64+cols-26);
   const wr=await fetch(`https://graph.microsoft.com/v1.0/me/drive/items/${fileId}/workbook/worksheets/${encodeURIComponent(nomeAba)}/range(address='A${nextRow}:${lc}${nextRow}')`,
@@ -1715,7 +1732,9 @@ async function escreverLinha(fileId, nomeAba, linha){
 }
 
 async function appendFrtExcel(reg){
-  const d=new Date(reg.data+'T12:00:00'),ano=d.getFullYear(),mes=MESES[d.getMonth()];
+  const d=new Date((reg.data||'')+'T12:00:00');
+  if(isNaN(d.getTime())) throw new Error('Data inválida no frete: '+reg.data);
+  const ano=d.getFullYear(),mes=MESES[d.getMonth()];
   const raiz=odPath.normalize('NFD').replace(/[\u0300-\u036f]/g,'');
   const fid=await getOrCreateExcel(`${raiz}/Fretes_${ano}.xlsx`);
   const cab=['Data','Hora','Motorista','Veiculo','VeiculoNome','Produtor','Municipio','Propriedade','Apelido','Comunidade','Latitude','Longitude','TipoLabel','Tipo','Sacas','Tambores','Arrobas','Renda%','Aproveit%','CargaKg','PesoEstimado_kg','SacasEquiv','Destino','Km','Valor_R$','Observacoes','Status'];
@@ -1766,8 +1785,4 @@ async function sincMotorista(m){
 
 // UTILS
 function toastOk(m){const t=document.getElementById('toast-ok');t.textContent=m;t.classList.add('show');setTimeout(()=>t.classList.remove('show'),3500);}
-function toastErr(m){const t=document.getElementById('toast-err');t.textContent=m;t.classList.add('show');setTimeout(()=>t.classList.remove('show'),5000);}
-function closeModal(id){document.getElementById('modal-'+id).classList.remove('open');}
-</script>
-</body>
-</html>
+function toastErr(m){const t=docum
