@@ -275,7 +275,7 @@ body{font-family:'DM Sans',sans-serif;background:var(--cream);min-height:100vh;c
   <div class="lock-overlay" id="form-lock">
     <div style="font-size:44px">🔒</div>
     <h2>Conexão necessária</h2>
-    <p>Para registrar fretes conecte ao Microsoft 365 (<a href="/cdn-cgi/l/email-protection" class="__cf_email__" data-cfemail="b0d3dfdec4d1c4dff0d3d1d6d5c6d9dcd5dcd19ed3dfdd9ed2c2">[email&#160;protected]</a>).</p>
+    <p>Para registrar fretes conecte ao Microsoft 365.</p>
     <button class="btn btn-primary" style="width:auto;padding:10px 22px" onclick="handleMSAuth()">
       <svg width="15" height="15" viewBox="0 0 21 21"><rect x="1" y="1" width="9" height="9" fill="#f25022"/><rect x="11" y="1" width="9" height="9" fill="#7fba00"/><rect x="1" y="11" width="9" height="9" fill="#00a4ef"/><rect x="11" y="11" width="9" height="9" fill="#ffb900"/></svg>
       Conectar Microsoft
@@ -627,7 +627,7 @@ body{font-family:'DM Sans',sans-serif;background:var(--cream);min-height:100vh;c
 <div class="toast ok"  id="toast-ok"></div>
 <div class="toast err" id="toast-err"></div>
 
-<script data-cfasync="false" src="/cdn-cgi/scripts/5c5dd728/cloudflare-static/email-decode.min.js"></script><script>
+<script>
 'use strict';
 // =====================================================================
 // CONSTANTES
@@ -636,7 +636,7 @@ const CLIENT_ID   = 'ff4e57e2-4fc1-4b2e-8e4a-28a2df5a20c9';
 const TENANT_ID   = '9a66e204-c69d-486c-97ff-40f69be9595f';
 const REDIRECT_URI = 'https://andretvilela.github.io/fretes-cafe-vilela/';
 const MS_SCOPES   = 'Files.ReadWrite User.Read offline_access';
-const LOGIN_HINT  = 'contato@cafevilela.com.br';
+const LOGIN_HINT  = ['contato','cafevilela.com.br'].join('@');
 const TOKEN_KEY   = 'frt_ms_token';
 const TOKEN_EXP   = 'frt_ms_token_exp';
 const MESES = ['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
@@ -1298,7 +1298,7 @@ function compartilharPDF(id){
     <table style="width:100%;border-collapse:collapse;font-size:13px">${rows}</table>
     ${obs}
     <div style="margin-top:20px;padding-top:14px;border-top:1px solid #F0EBE3;font-size:10px;color:#9C8470;text-align:center">
-      Café Vilela · Comércio e Armazém de Café Verde · contato@cafevilela.com.br
+      Café Vilela · Comércio e Armazém de Café Verde · (37) 9152-0020
     </div>
     <div class="no-print" style="margin-top:16px;text-align:center">
       <button onclick="window.print()" style="background:#3C2A1E;color:#fff;border:none;border-radius:8px;padding:10px 22px;font-size:14px;cursor:pointer">🖨️ Imprimir / Salvar PDF</button>
