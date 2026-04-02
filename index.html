@@ -5,19 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <title>Gestão de Fretes — Café Vilela</title>
 <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;500;600&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
-<script data-cfasync="false" src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
-<script data-cfasync="false">
-// Proxy global — garante que handleMSAuth funciona mesmo antes do script principal carregar
-window._authPending = false;
-window.handleMSAuth = function(){
-  // Se o script principal ainda não carregou, marca e tenta novamente
-  if(typeof window._handleMSAuthReal === 'function'){
-    window._handleMSAuthReal();
-  } else {
-    window._authPending = true;
-  }
-};
-</script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <style>
 *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
 :root{
@@ -248,71 +236,9 @@ body{font-family:'DM Sans',sans-serif;background:var(--cream);min-height:100vh;c
 .tag-lbl:hover{border-color:var(--cafe-light)}
 .tag-lbl input{margin:0}
 .hint-box{background:var(--cream-dark);border-left:3px solid var(--cafe-light);border-radius:0 7px 7px 0;padding:8px 11px;font-size:12px;color:var(--text-mid);margin-top:6px;line-height:1.6}
-
-/* SPLASH — primeiro acesso */
-#splash{position:fixed;inset:0;z-index:999;background:var(--cafe);display:flex;align-items:center;justify-content:center;padding:2rem}
-#splash.hidden{display:none}
-.splash-box{background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.14);border-radius:20px;padding:2.5rem 2rem;max-width:400px;width:100%;text-align:center}
-.splash-logo{font-size:52px;margin-bottom:1.25rem}
-.splash-box h1{font-family:'Playfair Display',serif;font-size:24px;color:#fff;margin-bottom:.4rem}
-.splash-box p{font-size:13px;color:rgba(255,255,255,0.6);line-height:1.7;margin-bottom:1.75rem}
-.splash-features{display:flex;flex-direction:column;gap:7px;margin-bottom:1.75rem;text-align:left}
-.splash-feat{display:flex;align-items:center;gap:10px;font-size:13px;color:rgba(255,255,255,0.75);background:rgba(255,255,255,0.05);border-radius:9px;padding:9px 12px}
-.splash-feat span{font-size:17px;flex-shrink:0}
-.btn-splash{width:100%;background:#fff;color:var(--cafe);border:none;border-radius:12px;padding:14px 22px;font-size:15px;font-family:'DM Sans',sans-serif;font-weight:600;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:10px;transition:all .15s}
-.btn-splash:hover{background:var(--cream);transform:translateY(-1px)}
-/* SETUP PROGRESS */
-#setup-overlay{position:fixed;inset:0;z-index:998;background:rgba(26,18,9,0.88);display:none;align-items:center;justify-content:center;padding:2rem;backdrop-filter:blur(6px)}
-#setup-overlay.open{display:flex}
-.setup-box{background:#fff;border-radius:18px;padding:2rem 1.75rem;max-width:370px;width:100%;text-align:center}
-.setup-box h2{font-family:'Playfair Display',serif;font-size:19px;color:var(--cafe);margin-bottom:.4rem}
-.setup-box p{font-size:13px;color:var(--text-mid);margin-bottom:1.25rem;line-height:1.6}
-.setup-steps{display:flex;flex-direction:column;gap:7px;text-align:left}
-.setup-step{display:flex;align-items:center;gap:10px;font-size:13px;color:var(--text-light);padding:8px 12px;border-radius:8px;background:var(--cream);transition:all .3s}
-.setup-step.active{background:#E3F2FD;color:#1565C0;font-weight:500}
-.setup-step.done{background:#E8F5E9;color:#2E7D32}
-.setup-step.error{background:#FFEBEE;color:#C62828}
-.setup-step-icon{font-size:15px;flex-shrink:0;width:22px;text-align:center}
-.setup-spinner{display:inline-block;width:14px;height:14px;border:2px solid rgba(21,101,192,.3);border-top-color:#1565C0;border-radius:50%;animation:spin .7s linear infinite}
-@keyframes spin{to{transform:rotate(360deg)}}
 </style>
 </head>
 <body>
-
-<!-- SPLASH — aparece na primeira vez ou quando desconectado sem histórico -->
-<div id="splash" class="hidden">
-  <div class="splash-box">
-    <div class="splash-logo">🚛</div>
-    <h1>Gestão de Fretes</h1>
-    <p>Café Vilela · Capitólio, MG<br>Conecte sua conta Microsoft 365 para iniciar. Os arquivos de banco de dados serão criados automaticamente no seu OneDrive.</p>
-    <div class="splash-features">
-      <div class="splash-feat"><span>📦</span> Registro de fretes com cálculo de carga</div>
-      <div class="splash-feat"><span>📍</span> Propriedades com GPS e rota no Google Maps</div>
-      <div class="splash-feat"><span>🚚</span> Cadastro de veículos e motoristas</div>
-      <div class="splash-feat"><span>☁️</span> Banco de dados no seu OneDrive</div>
-    </div>
-    <button class="btn-splash" id="btn-splash-connect">
-      <svg width="18" height="18" viewBox="0 0 21 21"><rect x="1" y="1" width="9" height="9" fill="#f25022"/><rect x="11" y="1" width="9" height="9" fill="#7fba00"/><rect x="1" y="11" width="9" height="9" fill="#00a4ef"/><rect x="11" y="11" width="9" height="9" fill="#ffb900"/></svg>
-      Conectar com Microsoft 365
-    </button>
-  </div>
-</div>
-
-<!-- SETUP — criação automática dos arquivos (só na primeira conexão) -->
-<div id="setup-overlay">
-  <div class="setup-box">
-    <div style="font-size:34px;margin-bottom:.75rem">☁️</div>
-    <h2>Configurando banco de dados</h2>
-    <p>Criando os arquivos Excel no OneDrive. Isso só acontece uma vez.</p>
-    <div class="setup-steps">
-      <div class="setup-step" id="ss-conta"><div class="setup-step-icon">👤</div>Verificando conta Microsoft</div>
-      <div class="setup-step" id="ss-fretes"><div class="setup-step-icon">📊</div>Criando Fretes_<span id="ss-ano"></span>.xlsx</div>
-      <div class="setup-step" id="ss-clientes"><div class="setup-step-icon">📋</div>Criando Clientes_Propriedades.xlsx</div>
-      <div class="setup-step" id="ss-fim"><div class="setup-step-icon">✅</div>Pronto! Carregando o sistema...</div>
-    </div>
-  </div>
-</div>
-
 <div class="app">
 
 <!-- HEADER -->
@@ -349,7 +275,7 @@ body{font-family:'DM Sans',sans-serif;background:var(--cream);min-height:100vh;c
   <div class="lock-overlay" id="form-lock">
     <div style="font-size:44px">🔒</div>
     <h2>Conexão necessária</h2>
-    <p>Para registrar fretes conecte ao Microsoft 365.</p>
+    <p>Para registrar fretes conecte ao Microsoft 365 (contato@cafevilela.com.br).</p>
     <button class="btn btn-primary" style="width:auto;padding:10px 22px" onclick="handleMSAuth()">
       <svg width="15" height="15" viewBox="0 0 21 21"><rect x="1" y="1" width="9" height="9" fill="#f25022"/><rect x="11" y="1" width="9" height="9" fill="#7fba00"/><rect x="1" y="11" width="9" height="9" fill="#00a4ef"/><rect x="11" y="11" width="9" height="9" fill="#ffb900"/></svg>
       Conectar Microsoft
@@ -701,7 +627,7 @@ body{font-family:'DM Sans',sans-serif;background:var(--cream);min-height:100vh;c
 <div class="toast ok"  id="toast-ok"></div>
 <div class="toast err" id="toast-err"></div>
 
-<script data-cfasync="false">
+<script>
 'use strict';
 // =====================================================================
 // CONSTANTES
@@ -710,7 +636,7 @@ const CLIENT_ID   = 'ff4e57e2-4fc1-4b2e-8e4a-28a2df5a20c9';
 const TENANT_ID   = '9a66e204-c69d-486c-97ff-40f69be9595f';
 const REDIRECT_URI = 'https://andretvilela.github.io/fretes-cafe-vilela/';
 const MS_SCOPES   = 'Files.ReadWrite User.Read offline_access';
-const LOGIN_HINT  = 'contato'+'@'+'cafevilela.com.br';
+const LOGIN_HINT  = 'contato@cafevilela.com.br';
 const TOKEN_KEY   = 'frt_ms_token';
 const TOKEN_EXP   = 'frt_ms_token_exp';
 const MESES = ['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
@@ -755,10 +681,6 @@ document.addEventListener('DOMContentLoaded', () => {
   updateBadges(); updateSelects();
   checkToken();
 
-  // Botão do splash — bind via JS para evitar problemas com Cloudflare email-decode
-  const btnSplash = document.getElementById('btn-splash-connect');
-  if(btnSplash) btnSplash.addEventListener('click', ()=>handleMSAuth());
-
   document.querySelectorAll('.modal-overlay').forEach(el => {
     el.addEventListener('click', e => { if(e.target===el) el.classList.remove('open'); });
   });
@@ -772,16 +694,16 @@ function showScreen(name, btn) {
   document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
   document.getElementById('screen-'+name).classList.add('active');
   if(btn) btn.classList.add('active');
-  // Dados já carregados do OneDrive na conexão — apenas renderiza localmente
-  if(name==='agenda')       renderAgenda();
-  if(name==='propriedades') renderProps();
-  if(name==='veiculos')     renderVeiculos();
-  if(name==='motoristas')   renderMotoristas();
+  if(name==='agenda')      { renderAgenda(); if(msToken) carregarOneDrive().catch(()=>{}); }
+  if(name==='propriedades'){ renderProps(); if(msToken) carregarPropsOneDrive().catch(()=>{}); }
+  if(name==='veiculos')    { renderVeiculos(); if(msToken) carregarVeiculosMotoristasOneDrive().catch(()=>{}); }
+  if(name==='motoristas')  { renderMotoristas(); if(msToken) carregarVeiculosMotoristasOneDrive().catch(()=>{}); }
+  if(name==='veiculos')    { renderVeiculos(); }
+  if(name==='motoristas')  { renderMotoristas(); }
 }
 
 function updateBadges() {
-  // Agendamentos: não conta cancelados
-  document.getElementById('badge-hist').textContent = dadosFretes.filter(f=>f.status!=='Cancelado').length;
+  document.getElementById('badge-hist').textContent = dadosFretes.length;
   document.getElementById('badge-prop').textContent = dadosPropriedades.length;
   document.getElementById('badge-vei').textContent  = dadosVeiculos.length;
   document.getElementById('badge-mot').textContent  = dadosMotoristas.length;
@@ -827,131 +749,14 @@ function silentRefresh(){const f=document.createElement('iframe');f.style.displa
 function checkToken(){
   const p=new URLSearchParams(window.location.hash.substring(1));
   const t=p.get('access_token'),exp=p.get('expires_in');
-  if(t){
-    msToken=t;salvarToken(t,exp);agendarRefresh(exp);
-    window.history.replaceState({},' ',' ');
-    const jaSetup=localStorage.getItem('frt_setup_ok');
-    if(!jaSetup) iniciarSetup().then(()=>{onConnected();carregarDados();}).catch(()=>{onConnected();carregarDados();});
-    else { onConnected(); carregarDados(); }
-    return;
-  }
+  if(t){msToken=t;salvarToken(t,exp);agendarRefresh(exp);window.history.replaceState({},' ',' ');onConnected();carregarOneDrive().catch(()=>{});carregarPropsOneDrive().catch(()=>{});carregarVeiculosMotoristasOneDrive().catch(()=>{});return;}
   const saved=tokenSalvo();
-  if(saved){
-    msToken=saved;
-    fetch('https://graph.microsoft.com/v1.0/me',{headers:{Authorization:'Bearer '+saved}})
-      .then(r=>{
-        if(r.ok){
-          const rem=Math.max(0,(parseInt(localStorage.getItem(TOKEN_EXP)||'0')-Date.now())/1000);
-          agendarRefresh(rem); onConnected(); carregarDados();
-        } else {
-          msToken=null;localStorage.removeItem(TOKEN_KEY);localStorage.removeItem(TOKEN_EXP);
-          setDesconectado();
-        }
-      }).catch(()=>{msToken=saved; onConnected(); carregarDados();});
-  } else {
-    setDesconectado();
-  }
+  if(saved){msToken=saved;fetch('https://graph.microsoft.com/v1.0/me',{headers:{Authorization:'Bearer '+saved}}).then(r=>{if(r.ok){const rem=Math.max(0,(parseInt(localStorage.getItem(TOKEN_EXP)||'0')-Date.now())/1000);agendarRefresh(rem);onConnected();}else{msToken=null;localStorage.removeItem(TOKEN_KEY);localStorage.removeItem(TOKEN_EXP);setDesconectado();}}).catch(()=>{msToken=saved;onConnected();});}
+  else setDesconectado();
 }
-
-// Carrega todos os dados do OneDrive (fonte de verdade) ao conectar
-async function carregarDados(){
-  setSinc('pending','Carregando dados...');
-  await Promise.allSettled([
-    carregarOneDrive(),
-    carregarPropsOneDrive(),
-    carregarVeiculosMotoristasOneDrive()
-  ]);
-  setSinc('ok','Sincronizado');
-  renderAgenda(); renderProps(); renderVeiculos(); renderMotoristas();
-  updateBadges(); updateSelects();
-}
-
-// Setup automático: cria os arquivos Excel no OneDrive na primeira conexão
-async function iniciarSetup(){
-  document.getElementById('setup-overlay').classList.add('open');
-  document.getElementById('splash').classList.add('hidden');
-  document.getElementById('ss-ano').textContent=new Date().getFullYear();
-  const raiz=odPath.normalize('NFD').replace(/[\u0300-\u036f]/g,'');
-
-  function passo(id,estado,icon){
-    const el=document.getElementById(id);
-    el.className='setup-step '+estado;
-    el.querySelector('.setup-step-icon').innerHTML=
-      estado==='active'?'<div class="setup-spinner"></div>':icon;
-  }
-
-  try{
-    passo('ss-conta','active','👤');
-    await fetch('https://graph.microsoft.com/v1.0/me',{headers:{Authorization:'Bearer '+msToken}});
-    passo('ss-conta','done','✅');
-    await delay(300);
-
-    passo('ss-fretes','active','📊');
-    const ano=new Date().getFullYear(), mes=MESES[new Date().getMonth()];
-    const cabFrt=['Data','Hora','Motorista','Veiculo','VeiculoNome','Produtor','Municipio','Propriedade','Apelido','Comunidade','Latitude','Longitude','TipoLabel','Tipo','Sacas','Tambores','Arrobas','Renda%','Aproveit%','CargaKg','PesoEstimado_kg','SacasEquiv','Destino','Km','Valor_R$','Observacoes','Status'];
-    const fidFrt=await getOrCreateExcel(`${raiz}/Fretes_${ano}.xlsx`);
-    await garantirAba(fidFrt,mes,cabFrt);
-    passo('ss-fretes','done','✅');
-    await delay(300);
-
-    passo('ss-clientes','active','📋');
-    const fidCli=await getOrCreateExcel(`${raiz}/Clientes_Propriedades.xlsx`);
-    await garantirAba(fidCli,'Clientes',['Propriedade','Apelido','Comunidade','Produtor','Contato','Municipio','Telefone','Latitude','Longitude','Observacoes']);
-    await garantirAba(fidCli,'Veiculos',['Placa','Nome','Tipo','CapSacas','CapKg','Tara','MotoristaPad','Status','Observacoes']);
-    await garantirAba(fidCli,'Motoristas',['Nome','Telefone','CPF','CNH','Categoria','ValidadeCNH','Status','Observacoes']);
-    passo('ss-clientes','done','✅');
-    await delay(300);
-
-    passo('ss-fim','done','✅');
-    localStorage.setItem('frt_setup_ok','1');
-    await delay(1000);
-  } catch(e){
-    console.warn('Setup erro:',e);
-    localStorage.setItem('frt_setup_ok','1');
-  } finally {
-    document.getElementById('setup-overlay').classList.remove('open');
-  }
-}
-
-function handleMSAuth(){
-  if(msToken){
-    if(!confirm('Deseja desconectar a conta Microsoft?'))return;
-    localStorage.removeItem(TOKEN_KEY);localStorage.removeItem(TOKEN_EXP);
-    localStorage.removeItem('frt_setup_ok');
-    if(refreshTimer)clearTimeout(refreshTimer);
-    msToken=null; setDesconectado(); toastOk('Desconectado.');
-    return;
-  }
-  window.location.href=`https://login.microsoftonline.com/${tenantId}/oauth2/v2.0/authorize?client_id=${clientId}&response_type=token&redirect_uri=${encodeURIComponent(REDIRECT_URI)}&scope=${encodeURIComponent(MS_SCOPES)}&response_mode=fragment&login_hint=${encodeURIComponent(LOGIN_HINT)}&prompt=login`;
-}
-// Registra a implementação real e executa se houve clique pendente
-window._handleMSAuthReal = handleMSAuth;
-window.handleMSAuth = handleMSAuth;
-if(window._authPending){ window._authPending = false; handleMSAuth(); }
-
-function onConnected(){
-  document.getElementById('splash').classList.add('hidden');
-  const b=document.getElementById('btn-ms');
-  b.className='btn-ms connected';
-  b.innerHTML='<svg width="14" height="14" viewBox="0 0 21 21"><rect x="1" y="1" width="9" height="9" fill="#f25022"/><rect x="11" y="1" width="9" height="9" fill="#7fba00"/><rect x="1" y="11" width="9" height="9" fill="#00a4ef"/><rect x="11" y="11" width="9" height="9" fill="#ffb900"/></svg> Conectado';
-  const s=document.getElementById('cfg-status');if(s){s.textContent='Conectado ao Microsoft 365 ✓';s.style.color='#2E7D32';}
-  setSinc('ok','Conectado');
-  document.getElementById('form-lock').style.display='none';
-}
-
-function setDesconectado(){
-  // Exibe splash se nunca houve conexão/setup
-  if(!localStorage.getItem('frt_setup_ok')){
-    document.getElementById('splash').classList.remove('hidden');
-  }
-  const b=document.getElementById('btn-ms');
-  b.className='btn-ms';
-  b.innerHTML='<svg width="14" height="14" viewBox="0 0 21 21"><rect x="1" y="1" width="9" height="9" fill="#f25022"/><rect x="11" y="1" width="9" height="9" fill="#7fba00"/><rect x="1" y="11" width="9" height="9" fill="#00a4ef"/><rect x="11" y="11" width="9" height="9" fill="#ffb900"/></svg> Conectar Microsoft';
-  const s=document.getElementById('cfg-status');if(s){s.textContent='Desconectado.';s.style.color='#C62828';}
-  setSinc('error','Desconectado');
-  document.getElementById('form-lock').style.display='flex';
-}
-
+function handleMSAuth(){if(msToken){if(!confirm('Deseja desconectar a conta Microsoft?'))return;localStorage.removeItem(TOKEN_KEY);localStorage.removeItem(TOKEN_EXP);if(refreshTimer)clearTimeout(refreshTimer);msToken=null;setDesconectado();toastOk('Desconectado.');return;}window.location.href=`https://login.microsoftonline.com/${tenantId}/oauth2/v2.0/authorize?client_id=${clientId}&response_type=token&redirect_uri=${encodeURIComponent(REDIRECT_URI)}&scope=${encodeURIComponent(MS_SCOPES)}&response_mode=fragment&login_hint=${encodeURIComponent(LOGIN_HINT)}&prompt=login`;}
+function onConnected(){const b=document.getElementById('btn-ms');b.className='btn-ms connected';b.innerHTML='<svg width="14" height="14" viewBox="0 0 21 21"><rect x="1" y="1" width="9" height="9" fill="#f25022"/><rect x="11" y="1" width="9" height="9" fill="#7fba00"/><rect x="1" y="11" width="9" height="9" fill="#00a4ef"/><rect x="11" y="11" width="9" height="9" fill="#ffb900"/></svg> Conectado';const s=document.getElementById('cfg-status');if(s){s.textContent='Conectado ao Microsoft 365 ✓';s.style.color='#2E7D32';}setSinc('ok','Conectado');document.getElementById('form-lock').style.display='none';}
+function setDesconectado(){const b=document.getElementById('btn-ms');b.className='btn-ms';b.innerHTML='<svg width="14" height="14" viewBox="0 0 21 21"><rect x="1" y="1" width="9" height="9" fill="#f25022"/><rect x="11" y="1" width="9" height="9" fill="#7fba00"/><rect x="1" y="11" width="9" height="9" fill="#00a4ef"/><rect x="11" y="11" width="9" height="9" fill="#ffb900"/></svg> Conectar Microsoft';const s=document.getElementById('cfg-status');if(s){s.textContent='Desconectado.';s.style.color='#C62828';}setSinc('error','Desconectado');document.getElementById('form-lock').style.display='flex';}
 function setSinc(tipo,msg){const w=document.getElementById('sync-wrap'),d=document.getElementById('sync-dot'),t=document.getElementById('sync-txt');if(w)w.style.display='flex';if(d)d.className='sync-dot '+tipo;if(t)t.textContent=msg;}
 
 // =====================================================================
@@ -1252,11 +1057,8 @@ function setView(v){
 }
 
 function renderSummary(){
-  const ativos=dadosFretes.filter(f=>f.status!=='Cancelado');
-  const total=ativos.length,
-        sacas=ativos.reduce((s,f)=>s+(f.sacasEquiv||f.sacas||0),0),
-        valor=ativos.reduce((s,f)=>s+(f.valor||0),0),
-        em=ativos.filter(f=>f.status==='Em Rota').length;
+  const total=dadosFretes.length,sacas=dadosFretes.reduce((s,f)=>s+(f.sacasEquiv||f.sacas||0),0),
+        valor=dadosFretes.reduce((s,f)=>s+(f.valor||0),0),em=dadosFretes.filter(f=>f.status==='Em Rota').length;
   document.getElementById('summary-row').innerHTML=`
     <div class="summary-card"><div class="summary-lbl">Total</div><div class="summary-val">${total}</div><div class="summary-sub">fretes no mês</div></div>
     <div class="summary-card green"><div class="summary-lbl">Sacas Est.</div><div class="summary-val">${sacas.toLocaleString('pt-BR',{maximumFractionDigits:0})}</div><div class="summary-sub">sc beneficiadas</div></div>
@@ -1496,7 +1298,7 @@ function compartilharPDF(id){
     <table style="width:100%;border-collapse:collapse;font-size:13px">${rows}</table>
     ${obs}
     <div style="margin-top:20px;padding-top:14px;border-top:1px solid #F0EBE3;font-size:10px;color:#9C8470;text-align:center">
-      Café Vilela · Comércio e Armazém de Café Verde · (37) 9152-0020
+      Café Vilela · Comércio e Armazém de Café Verde · contato@cafevilela.com.br
     </div>
     <div class="no-print" style="margin-top:16px;text-align:center">
       <button onclick="window.print()" style="background:#3C2A1E;color:#fff;border:none;border-radius:8px;padding:10px 22px;font-size:14px;cursor:pointer">🖨️ Imprimir / Salvar PDF</button>
@@ -1964,4 +1766,8 @@ async function sincMotorista(m){
 
 // UTILS
 function toastOk(m){const t=document.getElementById('toast-ok');t.textContent=m;t.classList.add('show');setTimeout(()=>t.classList.remove('show'),3500);}
-function toastErr(m){const t=docum
+function toastErr(m){const t=document.getElementById('toast-err');t.textContent=m;t.classList.add('show');setTimeout(()=>t.classList.remove('show'),5000);}
+function closeModal(id){document.getElementById('modal-'+id).classList.remove('open');}
+</script>
+</body>
+</html>
