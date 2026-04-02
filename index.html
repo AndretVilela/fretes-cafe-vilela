@@ -6,6 +6,18 @@
 <title>Gestão de Fretes — Café Vilela</title>
 <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;500;600&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
 <script data-cfasync="false" src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script data-cfasync="false">
+// Proxy global — garante que handleMSAuth funciona mesmo antes do script principal carregar
+window._authPending = false;
+window.handleMSAuth = function(){
+  // Se o script principal ainda não carregou, marca e tenta novamente
+  if(typeof window._handleMSAuthReal === 'function'){
+    window._handleMSAuthReal();
+  } else {
+    window._authPending = true;
+  }
+};
+</script>
 <style>
 *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
 :root{
@@ -912,6 +924,10 @@ function handleMSAuth(){
   }
   window.location.href=`https://login.microsoftonline.com/${tenantId}/oauth2/v2.0/authorize?client_id=${clientId}&response_type=token&redirect_uri=${encodeURIComponent(REDIRECT_URI)}&scope=${encodeURIComponent(MS_SCOPES)}&response_mode=fragment&login_hint=${encodeURIComponent(LOGIN_HINT)}&prompt=login`;
 }
+// Registra a implementação real e executa se houve clique pendente
+window._handleMSAuthReal = handleMSAuth;
+window.handleMSAuth = handleMSAuth;
+if(window._authPending){ window._authPending = false; handleMSAuth(); }
 
 function onConnected(){
   document.getElementById('splash').classList.add('hidden');
