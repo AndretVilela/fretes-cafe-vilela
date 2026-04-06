@@ -1618,43 +1618,77 @@ async function lerAbaExcel(fileId, sheetName){
 async function carregarOneDrive(){
   if(!msToken)return; setSinc('pending','Carregando...'); document.getElementById('hist-loading').style.display='block';
   try{
-    const h=new Date(),ano=h.getFullYear(),mes=MESES[h.getMonth()];
+    const h=new Date(),ano=h.getFullYear();
     const raiz=odPath.normalize('NFD').replace(/[\u0300-\u036f]/g,'');
     const enc=`${raiz}/Fretes_${ano}.xlsx`.split('/').map(p=>encodeURIComponent(p)).join('/');
     const ck=await fetch(`https://graph.microsoft.com/v1.0/me/drive/root:/${enc}`,{headers:{Authorization:'Bearer '+msToken}});
     if(!ck.ok){setSinc('ok','Conectado');return;}
     const fid=(await ck.json()).id;
-    const rows=await lerAbaExcel(fid,mes);
-    if(!rows||rows.length<=1){setSinc('ok','Conectado');return;}
+
+    // Descobre todas as abas do arquivo
+    const wsR=await fetch(`https://graph.microsoft.com/v1.0/me/drive/items/${fid}/workbook/worksheets`,{headers:{Authorization:'Bearer '+msToken}});
+    const wsData=wsR.ok?await wsR.json():{value:[]};
+    const abas=(wsData.value||[]).map(s=>s.name).filter(n=>MESES.includes(n));
+    if(!abas.length){setSinc('ok','Conectado');return;}
+
     const novos=[];
-    for(let i=1;i<rows.length;i++){
-      const r=rows[i];if(!r[0])continue;
-      const pt=r[0]?String(r[0]).split('/'):[];
-      const di=pt.length===3?`${pt[2]}-${pt[1].padStart(2,'0')}-${pt[0].padStart(2,'0')}`:'';
-      // Detecta formato novo (27 cols) vs antigo (26 ou menos)
-      const novo=r.length>=25;
-      novos.push({
-        id:Date.now()+i*11,data:di,
-        hora:r[1]||'',motorista:r[2]||'',veiculo:r[3]||'',veiculoNome:r[4]||'',
-        produtor:r[5]||'',municipio:r[6]||'',propNome:r[7]||'',
-        propApelido:novo?(r[8]||''):'',propComunidade:novo?(r[9]||''):'',
-        propLat:novo?(r[10]||''):(r[8]||''),propLng:novo?(r[11]||''):(r[9]||''),
-        tipoLabel:novo?(r[12]||''):(r[10]||''),tipo:novo?(r[13]||''):(r[11]||''),
-        sacas:parseFloat(novo?r[14]:r[12])||0,tambores:parseFloat(novo?r[15]:r[13])||0,
-        arrobas:parseFloat(novo?r[16]:r[14])||0,renda:parseFloat(novo?r[17]:r[15])||0,
-        aproveit:parseFloat(novo?r[18]:r[16])||0,
-        cargaKg:parseFloat(novo?r[19]:0)||0,
-        pesoEstimado:parseInt(novo?r[20]:r[17])||0,sacasEquiv:parseFloat(novo?r[21]:r[18])||0,
-        destino:novo?(r[22]||''):(r[19]||''),
-        km:parseInt(novo?r[23]:r[22])||0,
-        valor:parseFloat(novo?r[24]:r[23])||0,
-        obs:novo?(r[25]||''):(r[24]||''),
-        status:novo?(r[26]||'Concluído'):(r[25]||'Concluído'),
-        sinc:true,fromCloud:true
-      });
+    for(const mes of abas){
+      const rows=await lerAbaExcel(fid,mes);
+      if(!rows||rows.length<=1)continue;
+      for(let i=1;i<rows.length;i++){
+        const r=rows[i];if(!r[0])continue;
+        // Converte data: serial numérico Excel ou dd/mm/yyyy ou yyyy-mm-dd
+        let di='';
+        const r0=String(r[0]).trim();
+        const r0n=Number(r0);
+        if(!isNaN(r0n)&&r0n>1&&r0n<100000){
+          // Serial numérico do Excel → converte para yyyy-mm-dd
+          const dt=new Date(Date.UTC(1899,11,30)+r0n*86400000);
+          if(!isNaN(dt.getTime())){
+            const yy=dt.getUTCFullYear(),mm=String(dt.getUTCMonth()+1).padStart(2,'0'),dd=String(dt.getUTCDate()).padStart(2,'0');
+            di=`${yy}-${mm}-${dd}`;
+          }
+        } else {
+          // Formato textual dd/mm/yyyy
+          const pt=r0.split('/');
+          if(pt.length===3)di=`${pt[2]}-${pt[1].padStart(2,'0')}-${pt[0].padStart(2,'0')}`;
+        }
+        if(!di)continue; // ignora linhas sem data válida
+        // Converte hora: serial decimal do Excel (0.291666 = 07:00) ou string "HH:MM"
+        let horaStr=String(r[1]||'').trim();
+        const horaN=Number(horaStr);
+        if(!isNaN(horaN)&&horaN>0&&horaN<1){
+          const totalMin=Math.round(horaN*1440);
+          const hh=String(Math.floor(totalMin/60)).padStart(2,'0');
+          const mm2=String(totalMin%60).padStart(2,'0');
+          horaStr=`${hh}:${mm2}`;
+        }
+        // Detecta formato novo (27 cols) vs antigo (26 ou menos)
+        const novo=r.length>=25;
+        novos.push({
+          id:Date.now()+novos.length*11,data:di,
+          hora:horaStr,motorista:r[2]||'',veiculo:r[3]||'',veiculoNome:r[4]||'',
+          produtor:r[5]||'',municipio:r[6]||'',propNome:r[7]||'',
+          propApelido:novo?(r[8]||''):'',propComunidade:novo?(r[9]||''):'',
+          propLat:novo?(r[10]||''):(r[8]||''),propLng:novo?(r[11]||''):(r[9]||''),
+          tipoLabel:novo?(r[12]||''):(r[10]||''),tipo:novo?(r[13]||''):(r[11]||''),
+          sacas:parseFloat(novo?r[14]:r[12])||0,tambores:parseFloat(novo?r[15]:r[13])||0,
+          arrobas:parseFloat(novo?r[16]:r[14])||0,renda:parseFloat(novo?r[17]:r[15])||0,
+          aproveit:parseFloat(novo?r[18]:r[16])||0,
+          cargaKg:parseFloat(novo?r[19]:0)||0,
+          pesoEstimado:parseInt(novo?r[20]:r[17])||0,sacasEquiv:parseFloat(novo?r[21]:r[18])||0,
+          destino:novo?(r[22]||''):(r[19]||''),
+          km:parseInt(novo?r[23]:r[22])||0,
+          valor:parseFloat(novo?r[24]:r[23])||0,
+          obs:novo?(r[25]||''):(r[24]||''),
+          status:novo?(r[26]||'Concluído'):(r[25]||'Concluído'),
+          sinc:true,fromCloud:true
+        });
+      }
     }
     if(novos.length>0){
-      const chave=d=>`${d.data}|${d.produtor}|${d.hora}`;const cc=new Set(novos.map(chave));
+      const chave=d=>`${d.data}|${d.produtor}|${d.hora}`;
+      const cc=new Set(novos.map(chave));
       dadosFretes=[...dadosFretes.filter(d=>!d.sinc&&!cc.has(chave(d))),...novos];
       salvarLocal();updateBadges();
     }
