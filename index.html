@@ -1341,10 +1341,11 @@ function renderProps(){
   if(!dadosPropriedades.length){cont.innerHTML='<div class="empty"><div class="empty-icon">📍</div><p>Nenhuma propriedade cadastrada.</p></div>';return;}
   cont.innerHTML='<div class="prop-grid">'+dadosPropriedades.map((p,i)=>{
     const tGPS=p.lat&&p.lng;
-    const nomeExib=p.apelido?`${p.nome} <span style="color:var(--text-light);font-size:11px">(${p.apelido})</span>`:p.nome;
+    // Produtor em destaque (com apelido ao lado), propriedade abaixo
+    const produtorExib=p.apelido?`${p.produtor||'—'} <span style="color:var(--text-light);font-size:11px">(${p.apelido})</span>`:p.produtor||'—';
     return `<div class="prop-card">
-      <div class="prop-nome">${nomeExib}</div>
-      <div class="prop-produtor">👤 ${p.produtor||'—'}${p.contato&&p.contato!==p.produtor?` <span style="color:var(--text-light);font-size:11px">· contato: ${p.contato}</span>`:''}</div>
+      <div class="prop-nome">${produtorExib}</div>
+      <div class="prop-produtor">🌿 ${p.nome||'—'}${p.contato&&p.contato!==p.produtor?` <span style="color:var(--text-light);font-size:11px">· contato: ${p.contato}</span>`:''}</div>
       ${p.comunidade?`<div style="font-size:12px;color:var(--blue);margin-bottom:4px">🏘️ ${p.comunidade}</div>`:''}
       <div style="font-size:11px;color:var(--text-light);margin-bottom:6px">🏙️ ${p.municipio||'—'}</div>
       ${tGPS?`<div class="prop-gps">📡 ${p.lat}, ${p.lng}</div>`:`<div class="prop-sem-gps">⚠️ Sem GPS</div>`}
