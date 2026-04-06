@@ -1118,8 +1118,8 @@ function calDiaClick(dataStr,dia){
         const temGPS=f.propLat&&f.propLng;
         return `<div class="hist-item" style="grid-template-columns:1fr auto;cursor:pointer" onclick="verDetalhe(${f.id})">
           <div>
-            <div class="hi-title">${f.propNome||f.produtor||'—'} <span style="font-size:11px;color:var(--text-light)">· ${f.hora||''}</span></div>
-            <div class="hi-sub">🚛 ${f.motorista||'—'} ${f.veiculo?'<span class="placa">'+f.veiculo+'</span>':''}</div>
+            <div class="hi-title">${f.produtor||f.propNome||'—'} <span style="font-size:11px;color:var(--text-light)">· ${f.hora||''}</span></div>
+            <div class="hi-sub">🌿 ${f.propNome||'—'} 🚛 ${f.motorista||'—'} ${f.veiculo?'<span class="placa">'+f.veiculo+'</span>':''}</div>
             <div class="hi-sub">${f.tipoLabel||f.tipo||''} ${f.sacas?'· '+f.sacas+' sc':f.arrobas?'· '+f.arrobas+' @':f.tambores?'· '+f.tambores+' tb':''} ${f.destino?'→ '+f.destino:''}</div>
           </div>
           <div style="display:flex;flex-direction:column;align-items:flex-end;gap:5px">
@@ -1150,8 +1150,8 @@ function renderLista(){
     return `<div class="hist-item" style="grid-template-columns:60px 1fr auto" onclick="verDetalhe(${f.id})">
       <div><div class="hi-data">${df}</div><div class="hi-hora">${f.hora||''}</div></div>
       <div>
-        <div class="hi-title">${f.propNome||f.produtor||'—'}</div>
-        <div class="hi-sub">🚛 ${f.motorista||'—'} ${placa}</div>
+        <div class="hi-title">${f.produtor||f.propNome||'—'}</div>
+        <div class="hi-sub">🌿 ${f.propNome||'—'} 🚛 ${f.motorista||'—'} ${placa}</div>
         <div class="hi-sub">${f.tipoLabel||''} ${f.sacas?'· '+f.sacas+' sc':f.arrobas?'· '+f.arrobas+' @':f.tambores?'· '+f.tambores+' tb':''} ${f.destino?'→ '+f.destino:''}</div>
       </div>
       <div style="display:flex;flex-direction:column;align-items:flex-end;gap:5px">
