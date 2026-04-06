@@ -1407,6 +1407,10 @@ async function salvarPropriedade(){
   const nome=document.getElementById('p-nome').value.trim();
   const produtor=document.getElementById('p-produtor').value.trim();
   if(!nome||!produtor){alert('Informe o nome da propriedade e o produtor.');return;}
+  // Captura dados antigos antes de sobrescrever (para excluir linha antiga no Excel)
+  const propAnterior=editandoPropIdx!==null?dadosPropriedades[editandoPropIdx]:null;
+  const nomeAnterior=propAnterior?.nome||null;
+  const produtorAnterior=propAnterior?.produtor||null;
   const prop={
     id:editandoPropIdx!==null?dadosPropriedades[editandoPropIdx].id:Date.now(),
     nome,
@@ -1423,7 +1427,7 @@ async function salvarPropriedade(){
   };
   if(editandoPropIdx!==null)dadosPropriedades[editandoPropIdx]=prop;else dadosPropriedades.push(prop);
   salvarPropsLocal();updateBadges();updateSelects();renderProps();closeModal('prop');
-  toastOk('Propriedade salva! Sincronizando...');if(msToken)await sincPropriedade(prop);
+  toastOk('Propriedade salva! Sincronizando...');if(msToken)await sincPropriedade(prop,nomeAnterior,produtorAnterior);
 }
 function usarGPSAtual(){if(!navigator.geolocation){toastErr('Geolocalização indisponível.');return;}toastOk('Obtendo localização...');navigator.geolocation.getCurrentPosition(pos=>{document.getElementById('p-lat').value=pos.coords.latitude.toFixed(6);document.getElementById('p-lng').value=pos.coords.longitude.toFixed(6);previewGPS();toastOk('Localização obtida!');},()=>toastErr('Não foi possível obter a localização.'));}
 function previewGPS(){const lat=document.getElementById('p-lat').value.trim(),lng=document.getElementById('p-lng').value.trim(),box=document.getElementById('gps-preview');if(lat&&lng&&!isNaN(lat)&&!isNaN(lng)){box.innerHTML=`<div class="gps-box ok" style="margin-top:0"><div><div style="font-size:11px;font-weight:600;color:var(--green)">✅ Coordenadas válidas</div><div class="gps-coords">${lat}, ${lng}</div></div><a class="btn-map" style="font-size:11px;padding:5px 9px" href="https://www.google.com/maps/search/?api=1&query=${lat},${lng}" target="_blank">👁 Ver</a></div>`;}else box.innerHTML='';}
@@ -1481,11 +1485,13 @@ function salvarVeiculo(){
   if(!placa||!nome){alert('Informe a placa e o modelo.');return;}
   const capSacas=parseInt(document.getElementById('v-cap-sacas').value)||0,capKg=parseInt(document.getElementById('v-cap-kg').value)||0;
   if(!capSacas&&!capKg){alert('Informe ao menos uma capacidade (sacas ou kg).');return;}
+  // Captura placa anterior para excluir linha antiga no Excel
+  const placaAnterior=editandoVeiculoIdx!==null?(dadosVeiculos[editandoVeiculoIdx]?.placa||null):null;
   const v={id:editandoVeiculoIdx!==null?dadosVeiculos[editandoVeiculoIdx].id:Date.now(),placa,nome,tipo:document.getElementById('v-tipo').value,capSacas,capKg,tara:parseInt(document.getElementById('v-tara').value)||0,motoristaPad:document.getElementById('v-motorista-pad').value,status:document.getElementById('v-status').value,obs:document.getElementById('v-obs').value};
   if(editandoVeiculoIdx!==null)dadosVeiculos[editandoVeiculoIdx]=v;else dadosVeiculos.push(v);
   salvarVeiculosLocal();updateBadges();updateSelects();renderVeiculos();closeModal('veiculo');
   toastOk('Veículo salvo! Sincronizando...');
-  if(msToken) sincVeiculo(v);
+  if(msToken) sincVeiculo(v,placaAnterior);
 }
 
 // =====================================================================
@@ -1507,7 +1513,7 @@ function renderMotoristas(){
         </div>
       </div>
       ${m.tel?`<div style="font-size:12px;color:var(--text-mid);margin-bottom:3px">📞 ${m.tel}</div>`:''}
-      ${m.cnh?`<div style="font-size:12px;color:var(--text-mid);margin-bottom:3px">🪪 CNH ${m.cat||''}  · ${m.cnh}${m.vcnh?' · venc. '+new Date(m.vcnh+'T12:00:00').toLocaleDateString('pt-BR'):''}</div>`:''}
+      ${m.cnh?`<div style="font-size:12px;color:var(--text-mid);margin-bottom:3px">🪪 CNH ${m.cat||''}  · ${m.cnh}${m.vcnh?' · venc. '+parseDateBR(m.vcnh):''}</div>`:''}
       <div style="font-size:11px;color:var(--text-light);margin-top:4px">${fretesPorMot(m.nome)} frete(s) registrado(s)</div>
       ${m.obs?`<div style="font-size:11px;color:var(--text-light);font-style:italic;margin-top:4px">${m.obs}</div>`:''}
       <div class="prop-actions" style="margin-top:8px">
@@ -1522,8 +1528,12 @@ function openMotoristaModal(){editandoMotoristaIdx=null;document.getElementById(
 function editarMotorista(idx){
   const m=dadosMotoristas[idx];editandoMotoristaIdx=idx;
   document.getElementById('mm-title').textContent='✏️ Editar Motorista';
-  document.getElementById('m-nome').value=m.nome||'';document.getElementById('m-tel').value=m.tel||'';document.getElementById('m-cpf').value=m.cpf||'';document.getElementById('m-cnh').value=m.cnh||'';document.getElementById('m-cat').value=m.cat||'E';document.getElementById('m-vcnh').value=m.vcnh||'';document.getElementById('m-status').value=m.status||'Ativo';document.getElementById('m-obs').value=m.obs||'';
+  document.getElementById('m-nome').value=m.nome||'';document.getElementById('m-tel').value=m.tel||'';document.getElementById('m-cpf').value=m.cpf||'';document.getElementById('m-cnh').value=m.cnh||'';document.getElementById('m-cat').value=m.cat||'E';
+  // Converte dd/mm/yyyy → yyyy-mm-dd para o input[type=date]
+  document.getElementById('m-vcnh').value=dateToInput(m.vcnh||'');
+  document.getElementById('m-status').value=m.status||'Ativo';document.getElementById('m-obs').value=m.obs||'';
   document.getElementById('modal-motorista').classList.add('open');
+}
 }
 function excluirMotorista(idx){
   if(!confirm('Excluir este motorista? A linha será removida do banco de dados.'))return;
@@ -1541,11 +1551,13 @@ function excluirMotorista(idx){
 }
 function salvarMotorista(){
   const nome=document.getElementById('m-nome').value.trim();if(!nome){alert('Informe o nome.');return;}
+  // Captura nome anterior para excluir linha antiga no Excel
+  const nomeAnterior=editandoMotoristaIdx!==null?(dadosMotoristas[editandoMotoristaIdx]?.nome||null):null;
   const m={id:editandoMotoristaIdx!==null?dadosMotoristas[editandoMotoristaIdx].id:Date.now(),nome,tel:document.getElementById('m-tel').value,cpf:document.getElementById('m-cpf').value,cnh:document.getElementById('m-cnh').value,cat:document.getElementById('m-cat').value,vcnh:document.getElementById('m-vcnh').value,status:document.getElementById('m-status').value,obs:document.getElementById('m-obs').value};
   if(editandoMotoristaIdx!==null)dadosMotoristas[editandoMotoristaIdx]=m;else dadosMotoristas.push(m);
   salvarMotoristasLocal();updateBadges();updateSelects();renderMotoristas();closeModal('motorista');
   toastOk('Motorista salvo! Sincronizando...');
-  if(msToken) sincMotorista(m);
+  if(msToken) sincMotorista(m,nomeAnterior);
 }
 
 
@@ -1824,39 +1836,68 @@ async function appendFrtExcel(reg){
   await escreverLinha(fid,mes,linha);
 }
 
-async function sincPropriedade(prop){
+// Converte data em qualquer formato (yyyy-mm-dd ou dd/mm/yyyy) para exibição brasileira
+function parseDateBR(val){
+  if(!val)return'';
+  const s=String(val).trim();
+  // Já está no formato dd/mm/yyyy
+  if(/^\d{2}\/\d{2}\/\d{4}$/.test(s))return s;
+  // Formato yyyy-mm-dd (padrão do input[type=date])
+  if(/^\d{4}-\d{2}-\d{2}$/.test(s)){
+    const [y,mo,d]=s.split('-');return`${d}/${mo}/${y}`;
+  }
+  // Fallback: tenta Date
+  const dt=new Date(s+'T12:00:00');
+  return isNaN(dt.getTime())?s:dt.toLocaleDateString('pt-BR');
+}
+
+// Converte data dd/mm/yyyy → yyyy-mm-dd para preencher input[type=date]
+function dateToInput(val){
+  if(!val)return'';
+  const s=String(val).trim();
+  if(/^\d{2}\/\d{2}\/\d{4}$/.test(s)){const[d,mo,y]=s.split('/');return`${y}-${mo}-${d}`;}
+  return s; // já está em yyyy-mm-dd ou outro formato
+}
+
+async function sincPropriedade(prop, nomeAnterior, produtorAnterior){
   if(!msToken)return;
   try{
     const raiz=odPath.normalize('NFD').replace(/[\u0300-\u036f]/g,'');
     const fid=await getOrCreateExcel(`${raiz}/Clientes_Propriedades.xlsx`);
     const cab=['Propriedade','Apelido','Comunidade','Produtor','Contato','Municipio','Telefone','Latitude','Longitude','Observacoes'];
     await garantirAba(fid,'Clientes',cab);
+    // Se é edição, exclui a linha antiga antes de inserir a nova
+    if(nomeAnterior)await excluirLinhaExcel(fid,'Clientes',nomeAnterior,produtorAnterior,null);
     const linha=[prop.nome||'',prop.apelido||'',prop.comunidade||'',prop.produtor||'',prop.contato||'',prop.municipio||'',prop.telefone||'',prop.lat||'',prop.lng||'',prop.obs||''];
     await escreverLinha(fid,'Clientes',linha);
     prop.sinc=true;salvarPropsLocal();toastOk('Propriedade sincronizada ✓');
   }catch(e){toastErr('Erro sinc. prop: '+(e.message||''));}
 }
 
-async function sincVeiculo(v){
+async function sincVeiculo(v, placaAnterior){
   if(!msToken)return;
   try{
     const raiz=odPath.normalize('NFD').replace(/[\u0300-\u036f]/g,'');
     const fid=await getOrCreateExcel(`${raiz}/Clientes_Propriedades.xlsx`);
     const cab=['Placa','Nome','Tipo','CapSacas','CapKg','Tara','MotoristaPad','Status','Observacoes'];
     await garantirAba(fid,'Veiculos',cab);
+    // Se é edição, exclui a linha antiga
+    if(placaAnterior)await excluirLinhaExcel(fid,'Veiculos',placaAnterior,null,null);
     const linha=[v.placa||'',v.nome||'',v.tipo||'',v.capSacas||0,v.capKg||0,v.tara||0,v.motoristaPad||'',v.status||'',v.obs||''];
     await escreverLinha(fid,'Veiculos',linha);
     v.sinc=true;salvarVeiculosLocal();toastOk('Veículo sincronizado ✓');
   }catch(e){toastErr('Erro sinc. veículo: '+(e.message||''));}
 }
 
-async function sincMotorista(m){
+async function sincMotorista(m, nomeAnterior){
   if(!msToken)return;
   try{
     const raiz=odPath.normalize('NFD').replace(/[\u0300-\u036f]/g,'');
     const fid=await getOrCreateExcel(`${raiz}/Clientes_Propriedades.xlsx`);
     const cab=['Nome','Telefone','CPF','CNH','Categoria','ValidadeCNH','Status','Observacoes'];
     await garantirAba(fid,'Motoristas',cab);
+    // Se é edição, exclui a linha antiga
+    if(nomeAnterior)await excluirLinhaExcel(fid,'Motoristas',nomeAnterior,null,null);
     const linha=[m.nome||'',m.tel||'',m.cpf||'',m.cnh||'',m.cat||'',m.vcnh||'',m.status||'',m.obs||''];
     await escreverLinha(fid,'Motoristas',linha);
     m.sinc=true;salvarMotoristasLocal();toastOk('Motorista sincronizado ✓');
