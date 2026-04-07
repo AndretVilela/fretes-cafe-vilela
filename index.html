@@ -1814,6 +1814,12 @@ async function escreverLinha(fileId, nomeAba, linha){
   let nextRow=2;try{const rows=await lerAbaExcel(fileId,nomeAba);if(rows&&rows.length>0){const p=rows.filter(r=>r&&r[0]!==''&&r[0]!==null&&r[0]!==undefined).length;nextRow=Math.max(p,1)+1;}}catch(e){nextRow=2;}
   const cols=linha.length;
   const lc=cols<=26?String.fromCharCode(64+cols):'A'+String.fromCharCode(64+cols-26);
+  // Define numberFormat '@' (texto) para a coluna A antes de escrever,
+  // impedindo o Excel de reinterpretar a data DD/MM/AAAA como MM/DD/AAAA
+  await fetch(
+    `https://graph.microsoft.com/v1.0/me/drive/items/${fileId}/workbook/worksheets/${encodeURIComponent(nomeAba)}/range(address='A${nextRow}')`,
+    {method:'PATCH',headers:hdrs,body:JSON.stringify({numberFormat:[['@']]})}
+  );
   const wr=await fetch(`https://graph.microsoft.com/v1.0/me/drive/items/${fileId}/workbook/worksheets/${encodeURIComponent(nomeAba)}/range(address='A${nextRow}:${lc}${nextRow}')`,
     {method:'PATCH',headers:hdrs,body:JSON.stringify({values:[linha]})});
   if(!wr.ok){const e=await wr.json().catch(()=>({}));throw new Error('Escrever linha: '+wr.status+' '+(e.error?.message||''));}
