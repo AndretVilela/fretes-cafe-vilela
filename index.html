@@ -1091,7 +1091,7 @@ function renderCal(){
     const dataStr=`${calAno}-${String(calMes+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
     const fretesDia=dadosFretes.filter(f=>f.data===dataStr);
     const isHoje=d===hoje.getDate()&&calMes===hoje.getMonth()&&calAno===hoje.getFullYear();
-    const evs=fretesDia.slice(0,3).map(f=>`<div class="cal-evento ${pillE[f.status]||'ag'}" title="${f.propNome||f.produtor}">${f.hora||''} ${(f.propNome||f.produtor||'').substring(0,12)}</div>`).join('');
+    const evs=fretesDia.slice(0,3).map(f=>`<div class="cal-evento ${pillE[f.status]||'ag'}" title="${f.produtor||f.propNome}">${f.hora||''} ${(f.produtor||f.propNome||'').substring(0,12)}</div>`).join('');
     const extra=fretesDia.length>3?`<div style="font-size:9px;color:var(--text-light)">+${fretesDia.length-3}</div>`:'';
     cells+=`<div class="cal-day${isHoje?' hoje':''}${fretesDia.length?' tem-frete':''}" onclick="calDiaClick('${dataStr}',${d})">
       <span class="cal-day-num">${d}</span>${evs}${extra}
