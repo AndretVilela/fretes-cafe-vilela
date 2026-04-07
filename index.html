@@ -1135,11 +1135,21 @@ function calDiaClick(dataStr,dia){
 function renderLista(){
   const filtro=(document.getElementById('filtro-status')?.value||'');
   const busca=(document.getElementById('filtro-busca')?.value||'').toLowerCase();
+  const hoje=new Date().toISOString().slice(0,10); // yyyy-mm-dd
   let lista=[...dadosFretes].filter(f=>{
     if(filtro&&f.status!==filtro)return false;
-    if(busca&&!(f.propNome||f.produtor||'').toLowerCase().includes(busca))return false;
+    if(busca&&!(f.produtor||f.propNome||'').toLowerCase().includes(busca))return false;
     return true;
-  }).sort((a,b)=>(b.data+b.hora).localeCompare(a.data+a.hora));
+  }).sort((a,b)=>{
+    // Ordena do agendamento mais próximo de hoje para o mais distante
+    // Futuros/hoje primeiro (ascendente), passados depois (mais recente primeiro)
+    const da=a.data||'', db=b.data||'';
+    const aFut=da>=hoje, bFut=db>=hoje;
+    if(aFut&&!bFut)return -1; // a é futuro, b é passado → a primeiro
+    if(!aFut&&bFut)return 1;  // b é futuro, a é passado → b primeiro
+    if(aFut&&bFut)return (da+a.hora).localeCompare(db+b.hora); // ambos futuros: mais próximo primeiro
+    return (db+b.hora).localeCompare(da+a.hora); // ambos passados: mais recente primeiro
+  });
   const cont=document.getElementById('hist-container');
   if(!lista.length){cont.innerHTML='<div class="empty"><div class="empty-icon">🚛</div><p>Nenhum frete encontrado.</p></div>';return;}
   const pm={'Agendado':'pill-agendado','Em Rota':'pill-em-rota','Concluído':'pill-concluido','Cancelado':'pill-cancelado'};
@@ -1853,7 +1863,10 @@ async function appendFrtExcel(reg){
   const fid=await getOrCreateExcel(`${raiz}/Fretes_${ano}.xlsx`);
   const cab=['Data','Hora','Motorista','Veiculo','VeiculoNome','Produtor','Municipio','Propriedade','Apelido','Comunidade','Latitude','Longitude','TipoLabel','Tipo','Sacas','Tambores','Arrobas','Renda%','Aproveit%','CargaKg','PesoEstimado_kg','SacasEquiv','Destino','Km','Valor_R$','Observacoes','Status'];
   await garantirAba(fid,mes,cab);
-  const df=d.toLocaleDateString('pt-BR');
+  // Formata data manualmente como DD/MM/AAAA para não depender do locale do ambiente
+  const dd=String(d.getDate()).padStart(2,'0');
+  const mm=String(d.getMonth()+1).padStart(2,'0');
+  const df=`${dd}/${mm}/${ano}`;
   const linha=[df,reg.hora||'',reg.motorista||'',reg.veiculo||'',reg.veiculoNome||'',reg.produtor||'',reg.municipio||'',reg.propNome||'',reg.propApelido||'',reg.propComunidade||'',reg.propLat||'',reg.propLng||'',reg.tipoLabel||'',reg.tipo||'',reg.sacas||0,reg.tambores||0,reg.arrobas||0,reg.renda||0,reg.aproveit||0,reg.cargaKg||0,reg.pesoEstimado||0,reg.sacasEquiv||0,reg.destino||'',reg.km||0,reg.valor||0,reg.obs||'',reg.status||''];
   await escreverLinha(fid,mes,linha);
 }
