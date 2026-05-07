@@ -1867,8 +1867,54 @@ async function carregarOneDrive(){
       salvarLocal();updateBadges();
     }
     setSinc('ok','Sincronizado');toastOk(novos.length+' fretes carregados.');
+    // Migração automática: preenche IDs em linhas que ainda não têm
+    migrarIdsFrentes(fid, abas).catch(e=>console.warn('Migração IDs:',e));
   }catch(e){setSinc('ok','Conectado');toastErr('Erro ao carregar: '+(e.message||''));}
   finally{document.getElementById('hist-loading').style.display='none';renderAgenda();}
+}
+
+// =====================================================================
+// MIGRAÇÃO DE IDs — preenche FRT-XXXXXXXX em linhas sem ID
+// Roda automaticamente ao conectar. Seguro: só grava se col A estiver vazia.
+// =====================================================================
+async function migrarIdsFrentes(fileId, abas){
+  const hdrs={'Authorization':'Bearer '+msToken,'Content-Type':'application/json'};
+  let total=0;
+  for(const mes of abas){
+    try{
+      const rows=await lerAbaExcel(fileId,mes);
+      if(!rows||rows.length<=1)continue;
+      for(let i=1;i<rows.length;i++){
+        const r=rows[i];
+        if(!r||!r[0])continue; // linha vazia
+        const celA=String(r[0]||'').trim();
+        // Pula se já tem ID ou se col A é cabeçalho
+        if(celA.startsWith('FRT-')||celA==='ID'||celA==='Data'||celA==='id')continue;
+        // Col A tem data (dd/mm/yyyy ou serial) — linha sem ID, precisa migrar
+        const linhaExcel=i+1; // +1 porque row 1 é cabeçalho
+        const novoId=gerarId('FRT');
+        // Define col A como texto e grava o ID
+        await fetch(
+          `https://graph.microsoft.com/v1.0/me/drive/items/${fileId}/workbook/worksheets/${encodeURIComponent(mes)}/range(address='A${linhaExcel}')`,
+          {method:'PATCH',headers:hdrs,body:JSON.stringify({numberFormat:[['@']],values:[[novoId]]})}
+        );
+        // Atualiza o frtId no objeto em memória para que edição/exclusão funcione imediatamente
+        const dd=String(r[0]||'').trim();
+        const pt=dd.split('/');
+        if(pt.length===3){
+          const dataInterna=`${pt[2]}-${pt[1].padStart(2,'0')}-${pt[0].padStart(2,'0')}`;
+          const fLocal=dadosFretes.find(f=>f.data===dataInterna&&!f.frtId);
+          if(fLocal) fLocal.frtId=novoId;
+        }
+        total++;
+        await delay(300); // pausa entre gravações para não sobrecarregar a API
+      }
+    }catch(e){console.warn('Migração aba '+mes+':',e);}
+  }
+  if(total>0){
+    salvarLocal();
+    toastOk(`Migração concluída: ${total} registro(s) receberam ID único.`);
+  }
 }
 
 async function sincFrete(reg, freteAnterior){
