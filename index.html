@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <title>Gestão de Fretes — Café Vilela</title>
 <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;500;600&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
-<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script data-cfasync="false" src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <style>
 *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
 :root{
@@ -356,9 +356,17 @@ body{font-family:'DM Sans',sans-serif;background:var(--cream);min-height:100vh;c
           <option value="">— Selecione uma propriedade —</option>
         </select>
       </div>
-      <button type="button" onclick="abrirRotaDestino()" class="btn-map" style="padding:10px 13px;flex-shrink:0;margin-bottom:0" title="Origem = propriedade de saída (com GPS); Destino = propriedade selecionada acima">🗺️ Ver Rota</button>
+    </div>
+    <div class="form-group" style="margin-top:.75rem">
+      <label>Parada Intermediária (opcional)</label>
+      <select id="f-parada-prop" onchange="onParadaSelect()">
+        <option value="">— Nenhuma parada —</option>
+      </select>
     </div>
     <div id="destino-gps-info" style="display:none;margin-top:8px"></div>
+    <div style="display:flex;gap:8px;margin-top:.75rem;flex-wrap:wrap">
+      <button type="button" onclick="abrirRotaDestino()" class="btn-map" style="padding:10px 13px" title="Rota: Origem → Parada (se houver) → Destino">🗺️ Ver Rota Completa</button>
+    </div>
   </div>
 
   <div class="card">
@@ -366,9 +374,13 @@ body{font-family:'DM Sans',sans-serif;background:var(--cream);min-height:100vh;c
     <div class="form-grid">
       <div class="form-group">
         <label>Distância estimada (km)</label>
-        <input type="number" id="f-km" placeholder="0" step="1" min="0">
+        <input type="number" id="f-km" placeholder="0" step="1" min="0" oninput="calcValorFrete()">
       </div>
-      <div class="form-group"><label>Valor do Frete (R$)</label><input type="number" id="f-valor" placeholder="0,00" step="0.01" min="0"></div>
+      <div class="form-group">
+        <label>Valor por Km (R$/km)</label>
+        <input type="number" id="f-valor-km" placeholder="0,00" step="0.01" min="0" oninput="calcValorFrete()">
+      </div>
+      <div class="form-group"><label>Valor do Frete (R$)</label><input type="number" id="f-valor" placeholder="Calculado automaticamente" step="0.01" min="0"></div>
     </div>
     <div class="form-group" style="margin-top:.875rem"><label>Observações</label><textarea id="f-obs" placeholder="Anotações, condições de acesso, observações da carga..."></textarea></div>
   </div>
@@ -627,7 +639,7 @@ body{font-family:'DM Sans',sans-serif;background:var(--cream);min-height:100vh;c
 <div class="toast ok"  id="toast-ok"></div>
 <div class="toast err" id="toast-err"></div>
 
-<script>
+<script data-cfasync="false">
 'use strict';
 // =====================================================================
 // CONSTANTES
@@ -647,6 +659,7 @@ const DIAS_SEMANA = ['Dom','Seg','Ter','Qua','Qui','Sex','Sáb'];
 // =====================================================================
 let msToken = null, refreshTimer = null;
 let dadosFretes = [], dadosPropriedades = [], dadosVeiculos = [], dadosMotoristas = [];
+let editandoFreteId = null; // id do frete em edição; null = novo frete= [], dadosMotoristas = [];
 let editandoPropIdx = null, editandoVeiculoIdx = null, editandoMotoristaIdx = null;
 let freteDetalheId = null;
 let calAno, calMes;
@@ -731,6 +744,12 @@ function updateSelects() {
   const sd = document.getElementById('f-destino-prop');
   if(sd) {
     sd.innerHTML = '<option value="">— Selecione uma propriedade cadastrada (opcional) —</option>'
+      + dadosPropriedades.map((p,i)=>`<option value="${i}">${p.apelido||p.nome} — ${p.municipio||p.produtor}</option>`).join('');
+  }
+  // Select parada intermediária
+  const sparada = document.getElementById('f-parada-prop');
+  if(sparada) {
+    sparada.innerHTML = '<option value="">— Nenhuma parada —</option>'
       + dadosPropriedades.map((p,i)=>`<option value="${i}">${p.apelido||p.nome} — ${p.municipio||p.produtor}</option>`).join('');
   }
 
@@ -931,6 +950,10 @@ function onPropSelect() {
 }
 
 // Selecionar propriedade como DESTINO — preenche campo de texto e guarda GPS
+function onParadaSelect(){
+  // sem ação necessária — parada é lida no momento de montar a rota
+}
+
 function onDestinoSelect() {
   const idx = parseInt(document.getElementById('f-destino-prop').value);
   const infoBox = document.getElementById('destino-gps-info');
@@ -956,18 +979,29 @@ function onDestinoSelect() {
 function abrirRotaDestino() {
   const origemIdx = parseInt(document.getElementById('f-prop-sel').value);
   const destIdx   = parseInt(document.getElementById('f-destino-prop').value);
+  const paradaIdx = parseInt(document.getElementById('f-parada-prop')?.value||'');
   const origem = (!isNaN(origemIdx) && origemIdx >= 0) ? dadosPropriedades[origemIdx] : null;
   const dest   = (!isNaN(destIdx)   && destIdx   >= 0) ? dadosPropriedades[destIdx]   : null;
+  const parada = (!isNaN(paradaIdx) && paradaIdx >= 0) ? dadosPropriedades[paradaIdx] : null;
   if(!dest)             { toastErr('Selecione uma propriedade de destino.'); return; }
   if(!dest.lat||!dest.lng) { toastErr('A propriedade de destino não tem GPS cadastrado.'); return; }
   const destinoParam = `${dest.lat},${dest.lng}`;
   const origemParam  = (origem?.lat && origem?.lng) ? `${origem.lat},${origem.lng}` : '';
+  const waypointParam = (parada?.lat && parada?.lng) ? `&waypoints=${parada.lat},${parada.lng}` : '';
   const url = origemParam
-    ? `https://www.google.com/maps/dir/?api=1&origin=${origemParam}&destination=${destinoParam}&travelmode=driving`
-    : `https://www.google.com/maps/dir/?api=1&destination=${destinoParam}&travelmode=driving`;
+    ? `https://www.google.com/maps/dir/?api=1&origin=${origemParam}${waypointParam}&destination=${destinoParam}&travelmode=driving`
+    : `https://www.google.com/maps/dir/?api=1${waypointParam}&destination=${destinoParam}&travelmode=driving`;
   window.open(url, '_blank');
 }
 
+async 
+function calcValorFrete(){
+  const km=parseFloat(document.getElementById('f-km').value)||0;
+  const vkm=parseFloat(document.getElementById('f-valor-km').value)||0;
+  if(km>0&&vkm>0){
+    document.getElementById('f-valor').value=(km*vkm).toFixed(2);
+  }
+}
 async function salvarFrete() {
   if(!msToken){toastErr('Conecte ao Microsoft antes de salvar.');return;}
   const data=document.getElementById('f-data').value;
@@ -993,7 +1027,7 @@ async function salvarFrete() {
   const destProp = (!isNaN(destIdx) && destIdx >= 0) ? dadosPropriedades[destIdx] : null;
   const destinoNome = destProp ? (destProp.apelido||destProp.nome)+(destProp.municipio?' — '+destProp.municipio:'') : '';
   const reg={
-    id:Date.now(),data,hora:document.getElementById('f-hora').value,
+    id:editandoFreteId!==null?editandoFreteId:Date.now(),data,hora:document.getElementById('f-hora').value,
     motorista:document.getElementById('f-motorista').value,
     veiculo:vei?vei.placa:'',veiculoNome:vei?vei.nome:'',
     produtor,municipio:document.getElementById('f-municipio').value,
@@ -1005,14 +1039,27 @@ async function salvarFrete() {
     pesoEstimado:Math.round(pesoEstimado),sacasEquiv:+sacasEquiv.toFixed(2),
     destino:destinoNome,
     destinoLat:destProp?.lat||'',destinoLng:destProp?.lng||'',
+    paradaIdx:parseInt(document.getElementById('f-parada-prop').value),
+    paradaNome:(()=>{const pi=parseInt(document.getElementById('f-parada-prop').value);const pp=(!isNaN(pi)&&pi>=0)?dadosPropriedades[pi]:null;return pp?(pp.apelido||pp.nome)+(pp.municipio?' — '+pp.municipio:''):'';})(),
+    paradaLat:(()=>{const pi=parseInt(document.getElementById('f-parada-prop').value);const pp=(!isNaN(pi)&&pi>=0)?dadosPropriedades[pi]:null;return pp?.lat||'';})(),
+    paradaLng:(()=>{const pi=parseInt(document.getElementById('f-parada-prop').value);const pp=(!isNaN(pi)&&pi>=0)?dadosPropriedades[pi]:null;return pp?.lng||'';})(),
+    valorKm:parseFloat(document.getElementById('f-valor-km').value)||0,
     km:parseInt(document.getElementById('f-km').value)||0,
     valor:parseFloat(document.getElementById('f-valor').value)||0,
     obs:document.getElementById('f-obs').value,
     status:'Agendado',sinc:false
   };
-  dadosFretes.unshift(reg); salvarLocal(); updateBadges();
+  if(editandoFreteId!==null){
+    // EDIÇÃO — substitui o frete existente na memória
+    const idx=dadosFretes.findIndex(x=>x.id===editandoFreteId);
+    if(idx>=0) dadosFretes[idx]=reg; else dadosFretes.unshift(reg);
+  } else {
+    dadosFretes.unshift(reg);
+  }
+  salvarLocal(); updateBadges();
+  const freteAnt=editandoFreteId!==null?dadosFretes.find(x=>x.id===editandoFreteId&&x.sinc):null;
   toastOk('Frete salvo! Sincronizando...'); resetForm();
-  await sincFrete(reg);
+  await sincFrete(reg, freteAnt);
 }
 
 function resetForm(){
@@ -1031,6 +1078,11 @@ function resetForm(){
   const h=new Date(),pad=n=>String(n).padStart(2,'0');
   document.getElementById('f-data').value=`${h.getFullYear()}-${pad(h.getMonth()+1)}-${pad(h.getDate())}`;
   document.getElementById('f-hora').value='07:00';
+  editandoFreteId=null;
+  const btnSalvar=document.querySelector('.btn.btn-primary[onclick="salvarFrete()"]');
+  if(btnSalvar) btnSalvar.textContent='Salvar e Sincronizar Frete';
+  if(document.getElementById('f-valor-km')) document.getElementById('f-valor-km').value='';
+  if(document.getElementById('f-parada-prop')) document.getElementById('f-parada-prop').value='';
   document.getElementById('f-tipo').value='beneficiado';
   onTipoChange();
 }
@@ -1217,7 +1269,7 @@ function verDetalhe(id){
     +`<span class="pill ${pm[f.status]||'pill-agendado'}" style="margin-bottom:10px;display:inline-flex">${f.status}</span>`
     +rows.map(([k,v])=>`<div class="modal-row"><span>${k}</span><span>${v}</span></div>`).join('');
   // Botões de ação e compartilhamento
-  let btns=`<button class="btn btn-secondary" onclick="closeModal('frete')" style="flex:1">Fechar</button>`;
+  let btns=`<button class="btn btn-secondary" onclick="closeModal('frete')" style="flex:1">Fechar</button><button class="btn btn-sm" style="background:var(--cafe-mid);color:#fff" onclick="editarFreteExistente(${f.id})">✏️ Editar</button>`;
   if(f.status==='Agendado') btns+=`<button class="btn btn-green" onclick="mudarStatus(${f.id},'Em Rota')" style="flex:1">▶ Iniciar</button>`;
   if(f.status==='Em Rota')  btns+=`<button class="btn btn-primary" onclick="mudarStatus(${f.id},'Concluído')" style="flex:1">✓ Concluir</button>`;
   if(f.status!=='Cancelado'&&f.status!=='Concluído') btns+=`<button class="btn btn-danger btn-sm" onclick="mudarStatus(${f.id},'Cancelado')">✕</button>`;
@@ -1225,6 +1277,66 @@ function verDetalhe(id){
   btns+=`<button class="btn btn-pdf btn-sm" onclick="compartilharPDF(${f.id})">PDF</button>`;
   document.getElementById('mf-foot').innerHTML=btns;
   document.getElementById('modal-frete').classList.add('open');
+}
+
+function editarFreteExistente(id){
+  const f=dadosFretes.find(x=>x.id===id);if(!f)return;
+  closeModal('frete');
+  editandoFreteId=id;
+  showScreen('frete');
+  // Preenche data
+  document.getElementById('f-data').value=f.data||'';
+  document.getElementById('f-hora').value=f.hora||'07:00';
+  // Motorista
+  const mSel=document.getElementById('f-motorista');
+  for(let o of mSel.options){if(o.value===f.motorista){mSel.value=f.motorista;break;}}
+  // Veículo
+  const vSel=document.getElementById('f-veiculo');
+  for(let i=0;i<vSel.options.length;i++){
+    const v=dadosVeiculos[parseInt(vSel.options[i].value)];
+    if(v&&v.placa===f.veiculo){vSel.value=i;break;}
+  }
+  document.getElementById('f-produtor').value=f.produtor||'';
+  document.getElementById('f-municipio').value=f.municipio||'';
+  // Propriedade de origem
+  const pSel=document.getElementById('f-prop-sel');
+  for(let i=0;i<pSel.options.length;i++){
+    const p=dadosPropriedades[parseInt(pSel.options[i].value)];
+    if(p&&p.nome===f.propNome){pSel.value=parseInt(pSel.options[i].value);onPropSelect();break;}
+  }
+  // Tipo de café
+  document.getElementById('f-tipo').value=f.tipo||'beneficiado';
+  onTipoChange();
+  document.getElementById('f-sacas').value=f.sacas||'';
+  document.getElementById('f-tambores').value=f.tambores||'';
+  document.getElementById('f-arrobas').value=f.arrobas||'';
+  document.getElementById('f-renda').value=f.renda||'';
+  document.getElementById('f-aproveit').value=f.aproveit||'';
+  document.getElementById('f-carga-kg').value=f.cargaKg||'';
+  // Destino
+  const dSel=document.getElementById('f-destino-prop');
+  for(let i=0;i<dSel.options.length;i++){
+    const p=dadosPropriedades[parseInt(dSel.options[i].value)];
+    if(p&&(p.apelido||p.nome)===(f.destino||'').split(' — ')[0]){dSel.value=parseInt(dSel.options[i].value);onDestinoSelect();break;}
+  }
+  // Parada intermediária
+  if(f.paradaNome){
+    const parSel=document.getElementById('f-parada-prop');
+    for(let i=0;i<parSel.options.length;i++){
+      const p=dadosPropriedades[parseInt(parSel.options[i].value)];
+      if(p&&(p.apelido||p.nome)===(f.paradaNome||'').split(' — ')[0]){parSel.value=parseInt(parSel.options[i].value);break;}
+    }
+  }
+  document.getElementById('f-km').value=f.km||'';
+  document.getElementById('f-valor-km').value=f.valorKm||'';
+  document.getElementById('f-valor').value=f.valor||'';
+  document.getElementById('f-obs').value=f.obs||'';
+  calcCarga();
+  // Indica visualmente que é edição
+  toastOk('Editando frete — faça as alterações e salve.');
+  // Atualiza label do botão salvar
+  const btnSalvar=document.querySelector('.btn.btn-primary[onclick="salvarFrete()"]');
+  if(btnSalvar) btnSalvar.textContent='💾 Atualizar Frete';
 }
 
 function mudarStatus(id,novoStatus){
@@ -1244,12 +1356,17 @@ async function excluirFrete(id){
   // Remove do Excel se sincronizado
   if(msToken&&f.sinc){
     try{
-      const d=new Date((f.data||'')+'T12:00:00');
-      if(!isNaN(d.getTime())){
-        const ano=d.getFullYear(),mes=MESES[d.getMonth()];
+      // Parse direto da string yyyy-mm-dd sem new Date (evita problema de fuso)
+      const partes=(f.data||'').split('-');
+      if(partes.length===3){
+        const ano=parseInt(partes[0]),mesIdx=parseInt(partes[1])-1;
+        const mes=MESES[mesIdx];
+        const dd=String(parseInt(partes[2])).padStart(2,'0');
+        const mm=String(mesIdx+1).padStart(2,'0');
+        const dataFmt=`${dd}/${mm}/${ano}`; // DD/MM/AAAA como está na planilha
         const raiz=odPath.normalize('NFD').replace(/[\u0300-\u036f]/g,'');
         const fid=await getOrCreateExcel(`${raiz}/Fretes_${ano}.xlsx`);
-        await excluirLinhaExcel(fid,mes,f.data,f.produtor,f.hora);
+        await excluirLinhaExcel(fid,mes,dataFmt,f.produtor,null);
       }
     }catch(e){toastErr('Aviso: não foi possível remover do banco: '+(e.message||''));}
   }
@@ -1707,11 +1824,26 @@ async function carregarOneDrive(){
   finally{document.getElementById('hist-loading').style.display='none';renderAgenda();}
 }
 
-async function sincFrete(reg){
+async function sincFrete(reg, freteAnterior){
   setSinc('pending','Sincronizando...');
   try{
     const tr=await fetch('https://graph.microsoft.com/v1.0/me',{headers:{Authorization:'Bearer '+msToken}});
     if(!tr.ok){localStorage.removeItem(TOKEN_KEY);localStorage.removeItem(TOKEN_EXP);msToken=null;setDesconectado();throw new Error('Sessão expirada. Reconecte.');}
+    // Se é edição, excluir a linha antiga antes de inserir a nova
+    if(freteAnterior&&freteAnterior.sinc){
+      try{
+        const partes=(freteAnterior.data||'').split('-');
+        if(partes.length===3){
+          const anoA=parseInt(partes[0]),mesA=MESES[parseInt(partes[1])-1];
+          const raiz=odPath.normalize('NFD').replace(/[\u0300-\u036f]/g,'');
+          const fidA=await getOrCreateExcel(`${raiz}/Fretes_${anoA}.xlsx`);
+          const ddA=String(parseInt(partes[2])).padStart(2,'0');
+          const mmA=String(parseInt(partes[1])).padStart(2,'0');
+          const dataFmtA=`${ddA}/${mmA}/${anoA}`;
+          await excluirLinhaExcel(fidA,mesA,dataFmtA,freteAnterior.produtor,null);
+        }
+      }catch(e2){console.warn('Aviso: não excluiu linha antiga:',e2);}
+    }
     await appendFrtExcel(reg);
     reg.sinc=true;salvarLocal();setSinc('ok','Sincronizado');toastOk('Frete sincronizado ✓');
   }catch(e){setSinc('error','Erro');toastErr('Erro: '+(e.message||''));}
@@ -1820,6 +1952,9 @@ async function escreverLinha(fileId, nomeAba, linha){
     `https://graph.microsoft.com/v1.0/me/drive/items/${fileId}/workbook/worksheets/${encodeURIComponent(nomeAba)}/range(address='A${nextRow}')`,
     {method:'PATCH',headers:hdrs,body:JSON.stringify({numberFormat:[['@']]})}
   );
+  // Força coluna A como texto para evitar reinterpretação de data pelo Excel
+  await fetch(`https://graph.microsoft.com/v1.0/me/drive/items/${fileId}/workbook/worksheets/${encodeURIComponent(nomeAba)}/range(address='A${nextRow}')`,
+    {method:'PATCH',headers:hdrs,body:JSON.stringify({numberFormat:[['@']]})});
   const wr=await fetch(`https://graph.microsoft.com/v1.0/me/drive/items/${fileId}/workbook/worksheets/${encodeURIComponent(nomeAba)}/range(address='A${nextRow}:${lc}${nextRow}')`,
     {method:'PATCH',headers:hdrs,body:JSON.stringify({values:[linha]})});
   if(!wr.ok){const e=await wr.json().catch(()=>({}));throw new Error('Escrever linha: '+wr.status+' '+(e.error?.message||''));}
