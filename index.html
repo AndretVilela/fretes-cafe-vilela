@@ -1809,25 +1809,28 @@ async function carregarOneDrive(){
       if(!rows||rows.length<=1)continue;
       for(let i=1;i<rows.length;i++){
         const r=rows[i];if(!r[0])continue;
-        // Converte data: serial numérico Excel ou dd/mm/yyyy ou yyyy-mm-dd
+        // Detecta se col 0 é ID (começa com FRT-) ou Data
+        const temId=String(r[0]||'').startsWith('FRT-');
+        const o=temId?1:0; // offset: se tem ID, dados começam na col 1
+
+        // Lê data da coluna correta (col 0 sem ID, col 1 com ID)
         let di='';
-        const r0=String(r[0]).trim();
-        const r0n=Number(r0);
-        if(!isNaN(r0n)&&r0n>1&&r0n<100000){
-          // Serial numérico do Excel → converte para yyyy-mm-dd
-          const dt=new Date(Date.UTC(1899,11,30)+r0n*86400000);
+        const rData=String(r[o]||'').trim();
+        const rDataN=Number(rData);
+        if(!isNaN(rDataN)&&rDataN>1&&rDataN<100000){
+          const dt=new Date(Date.UTC(1899,11,30)+rDataN*86400000);
           if(!isNaN(dt.getTime())){
             const yy=dt.getUTCFullYear(),mm=String(dt.getUTCMonth()+1).padStart(2,'0'),dd=String(dt.getUTCDate()).padStart(2,'0');
             di=`${yy}-${mm}-${dd}`;
           }
         } else {
-          // Formato textual dd/mm/yyyy
-          const pt=r0.split('/');
+          const pt=rData.split('/');
           if(pt.length===3)di=`${pt[2]}-${pt[1].padStart(2,'0')}-${pt[0].padStart(2,'0')}`;
         }
-        if(!di)continue; // ignora linhas sem data válida
-        // Converte hora: serial decimal do Excel (0.291666 = 07:00) ou string "HH:MM"
-        let horaStr=String(r[1]||'').trim();
+        if(!di)continue;
+
+        // Lê hora da coluna correta (col 1 sem ID, col 2 com ID)
+        let horaStr=String(r[o+1]||'').trim();
         const horaN=Number(horaStr);
         if(!isNaN(horaN)&&horaN>0&&horaN<1){
           const totalMin=Math.round(horaN*1440);
@@ -1835,27 +1838,24 @@ async function carregarOneDrive(){
           const mm2=String(totalMin%60).padStart(2,'0');
           horaStr=`${hh}:${mm2}`;
         }
-        // Detecta formato novo (27 cols) vs antigo (26 ou menos)
-        const novo=r.length>=25;
-        // Detecta se tem coluna ID (col 0 começa com prefixo FRT-)
-        const temId=String(r[0]||'').startsWith('FRT-');
-        const o=temId?1:0; // offset: se tem ID, dados começam na col 1
+
         novos.push({
           id:Date.now()+novos.length*11,
           frtId:temId?(r[0]||''):gerarId('FRT'),
           data:di,
-          hora:horaStr,motorista:r[o+1]||'',veiculo:r[o+2]||'',veiculoNome:r[o+3]||'',
-          produtor:r[o+4]||'',municipio:r[o+5]||'',propNome:r[o+6]||'',
-          propApelido:r[o+7]||'',propComunidade:r[o+8]||'',
-          propLat:r[o+9]||'',propLng:r[o+10]||'',
-          tipoLabel:r[o+11]||'',tipo:r[o+12]||'',
-          sacas:parseFloat(r[o+13])||0,tambores:parseFloat(r[o+14])||0,
-          arrobas:parseFloat(r[o+15])||0,renda:parseFloat(r[o+16])||0,
-          aproveit:parseFloat(r[o+17])||0,cargaKg:parseFloat(r[o+18])||0,
-          pesoEstimado:parseInt(r[o+19])||0,sacasEquiv:parseFloat(r[o+20])||0,
-          destino:r[o+21]||'',km:parseInt(r[o+22])||0,
-          valor:parseFloat(r[o+23])||0,obs:r[o+24]||'',
-          status:r[o+25]||'Concluído',
+          hora:horaStr,
+          motorista:r[o+2]||'',veiculo:r[o+3]||'',veiculoNome:r[o+4]||'',
+          produtor:r[o+5]||'',municipio:r[o+6]||'',propNome:r[o+7]||'',
+          propApelido:r[o+8]||'',propComunidade:r[o+9]||'',
+          propLat:r[o+10]||'',propLng:r[o+11]||'',
+          tipoLabel:r[o+12]||'',tipo:r[o+13]||'',
+          sacas:parseFloat(r[o+14])||0,tambores:parseFloat(r[o+15])||0,
+          arrobas:parseFloat(r[o+16])||0,renda:parseFloat(r[o+17])||0,
+          aproveit:parseFloat(r[o+18])||0,cargaKg:parseFloat(r[o+19])||0,
+          pesoEstimado:parseInt(r[o+20])||0,sacasEquiv:parseFloat(r[o+21])||0,
+          destino:r[o+22]||'',km:parseInt(r[o+23])||0,
+          valor:parseFloat(r[o+24])||0,obs:r[o+25]||'',
+          status:r[o+26]||'Concluído',
           sinc:true,fromCloud:true
         });
       }
