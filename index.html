@@ -994,8 +994,7 @@ function abrirRotaDestino() {
   window.open(url, '_blank');
 }
 
-async 
-function calcValorFrete(){
+async function calcValorFrete(){
   const km=parseFloat(document.getElementById('f-km').value)||0;
   const vkm=parseFloat(document.getElementById('f-valor-km').value)||0;
   if(km>0&&vkm>0){
@@ -1283,7 +1282,10 @@ function editarFreteExistente(id){
   const f=dadosFretes.find(x=>x.id===id);if(!f)return;
   closeModal('frete');
   editandoFreteId=id;
-  showScreen('frete');
+  // Navega para a aba + Frete e marca o botão correto no menu
+  const btnNovo=document.querySelector('.nav-btn[onclick*="novo"]');
+  showScreen('novo', btnNovo);
+  window.scrollTo({top:0,behavior:'smooth'});
   // Preenche data
   document.getElementById('f-data').value=f.data||'';
   document.getElementById('f-hora').value=f.hora||'07:00';
