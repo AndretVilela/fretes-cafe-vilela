@@ -771,7 +771,7 @@ function checkToken(){
   const t=p.get('access_token'),exp=p.get('expires_in');
   if(t){msToken=t;salvarToken(t,exp);agendarRefresh(exp);window.history.replaceState({},' ',' ');onConnected();carregarOneDrive().catch(()=>{});carregarPropsOneDrive().catch(()=>{});carregarVeiculosMotoristasOneDrive().catch(()=>{});return;}
   const saved=tokenSalvo();
-  if(saved){msToken=saved;fetch('https://graph.microsoft.com/v1.0/me',{headers:{Authorization:'Bearer '+saved}}).then(r=>{if(r.ok){const rem=Math.max(0,(parseInt(localStorage.getItem(TOKEN_EXP)||'0')-Date.now())/1000);agendarRefresh(rem);onConnected();}else{msToken=null;localStorage.removeItem(TOKEN_KEY);localStorage.removeItem(TOKEN_EXP);setDesconectado();}}).catch(()=>{msToken=saved;onConnected();});}
+  if(saved){msToken=saved;fetch('https://graph.microsoft.com/v1.0/me',{headers:{Authorization:'Bearer '+saved}}).then(r=>{if(r.ok){const rem=Math.max(0,(parseInt(localStorage.getItem(TOKEN_EXP)||'0')-Date.now())/1000);agendarRefresh(rem);onConnected();carregarOneDrive().catch(()=>{});carregarPropsOneDrive().catch(()=>{});carregarVeiculosMotoristasOneDrive().catch(()=>{});}else{msToken=null;localStorage.removeItem(TOKEN_KEY);localStorage.removeItem(TOKEN_EXP);setDesconectado();}}).catch(()=>{msToken=saved;onConnected();});}
   else setDesconectado();
 }
 function handleMSAuth(){if(msToken){if(!confirm('Deseja desconectar a conta Microsoft?'))return;localStorage.removeItem(TOKEN_KEY);localStorage.removeItem(TOKEN_EXP);if(refreshTimer)clearTimeout(refreshTimer);msToken=null;setDesconectado();toastOk('Desconectado.');return;}window.location.href=`https://login.microsoftonline.com/${tenantId}/oauth2/v2.0/authorize?client_id=${clientId}&response_type=token&redirect_uri=${encodeURIComponent(REDIRECT_URI)}&scope=${encodeURIComponent(MS_SCOPES)}&response_mode=fragment&login_hint=${encodeURIComponent(LOGIN_HINT)}&prompt=login`;}
@@ -1556,7 +1556,7 @@ function excluirProp(idx){
     (async()=>{try{
       const raiz=odPath.normalize('NFD').replace(/[\u0300-\u036f]/g,'');
       const fid=await getOrCreateExcel(`${raiz}/Clientes_Propriedades.xlsx`);
-      await excluirLinhaExcel(fid,'Clientes',p.cliId||p.nome,p.cliId?null:p.produtor,null,p.cliId?0:0);
+      await excluirLinhaExcel(fid,'Clientes',p.nome,p.produtor,null);
     }catch(e){toastErr('Aviso: não foi possível remover do banco: '+(e.message||''));}})();
   }
 }
@@ -1630,7 +1630,7 @@ function excluirVeiculo(idx){
     (async()=>{try{
       const raiz=odPath.normalize('NFD').replace(/[\u0300-\u036f]/g,'');
       const fid=await getOrCreateExcel(`${raiz}/Clientes_Propriedades.xlsx`);
-      await excluirLinhaExcel(fid,'Veiculos',v.veiId||v.placa,null,null,0);
+      await excluirLinhaExcel(fid,'Veiculos',v.placa,null,null);
     }catch(e){toastErr('Aviso: não foi possível remover do banco: '+(e.message||''));}})();
   }
 }
@@ -1693,7 +1693,7 @@ function excluirMotorista(idx){
     (async()=>{try{
       const raiz=odPath.normalize('NFD').replace(/[\u0300-\u036f]/g,'');
       const fid=await getOrCreateExcel(`${raiz}/Clientes_Propriedades.xlsx`);
-      await excluirLinhaExcel(fid,'Motoristas',m.motId||m.nome,null,null,0);
+      await excluirLinhaExcel(fid,'Motoristas',m.nome,null,null);
     }catch(e){toastErr('Aviso: não foi possível remover do banco: '+(e.message||''));}})();
   }
 }
@@ -1721,16 +1721,9 @@ async function carregarVeiculosMotoristasOneDrive(){
     if(rowsV&&rowsV.length>1){
       const novos=rowsV.slice(1).filter(r=>r[0]).map((r,i)=>({
         id:Date.now()+i*7,sinc:true,
-        veiId:String(r[0]||'').startsWith('VEI-')?r[0]:gerarId('VEI'),
-        placa:String(r[0]||'').startsWith('VEI-')?String(r[1]||'').toUpperCase():String(r[0]||'').toUpperCase(),
-        nome:String(r[0]||'').startsWith('VEI-')?(r[2]||''):(r[1]||''),
-        tipo:String(r[0]||'').startsWith('VEI-')?(r[3]||''):(r[2]||''),
-        capSacas:parseInt(String(r[0]||'').startsWith('VEI-')?r[4]:r[3])||0,
-        capKg:parseInt(String(r[0]||'').startsWith('VEI-')?r[5]:r[4])||0,
-        tara:parseInt(String(r[0]||'').startsWith('VEI-')?r[6]:r[5])||0,
-        motoristaPad:String(r[0]||'').startsWith('VEI-')?(r[7]||''):(r[6]||''),
-        status:String(r[0]||'').startsWith('VEI-')?(r[8]||'Disponível'):(r[7]||'Disponível'),
-        obs:String(r[0]||'').startsWith('VEI-')?(r[9]||''):(r[8]||'')
+        placa:String(r[0]||'').toUpperCase(),nome:r[1]||'',tipo:r[2]||'',
+        capSacas:parseInt(r[3])||0,capKg:parseInt(r[4])||0,tara:parseInt(r[5])||0,
+        motoristaPad:r[6]||'',status:r[7]||'Disponível',obs:r[8]||''
       }));
       const cc=new Set(novos.map(v=>v.placa));
       dadosVeiculos=[...dadosVeiculos.filter(v=>!v.sinc&&!cc.has(v.placa)),...novos];
@@ -1742,15 +1735,8 @@ async function carregarVeiculosMotoristasOneDrive(){
     if(rowsM&&rowsM.length>1){
       const novos=rowsM.slice(1).filter(r=>r[0]).map((r,i)=>({
         id:Date.now()+i*11,sinc:true,
-        motId:String(r[0]||'').startsWith('MOT-')?r[0]:gerarId('MOT'),
-        nome:String(r[0]||'').startsWith('MOT-')?(r[1]||''):(r[0]||''),
-        tel:String(r[0]||'').startsWith('MOT-')?(r[2]||''):(r[1]||''),
-        cpf:String(r[0]||'').startsWith('MOT-')?(r[3]||''):(r[2]||''),
-        cnh:String(r[0]||'').startsWith('MOT-')?(r[4]||''):(r[3]||''),
-        cat:String(r[0]||'').startsWith('MOT-')?(r[5]||''):(r[4]||''),
-        vcnh:fmtData(String(r[0]||'').startsWith('MOT-')?(r[6]||''):(r[5]||'')),
-        status:String(r[0]||'').startsWith('MOT-')?(r[7]||'Ativo'):(r[6]||'Ativo'),
-        obs:String(r[0]||'').startsWith('MOT-')?(r[8]||''):(r[7]||'')
+        nome:r[0]||'',tel:r[1]||'',cpf:r[2]||'',cnh:r[3]||'',
+        cat:r[4]||'',vcnh:fmtData(r[5]||''),status:r[6]||'Ativo',obs:r[7]||''
       }));
       const cc=new Set(novos.map(m=>m.nome));
       dadosMotoristas=[...dadosMotoristas.filter(m=>!m.sinc&&!cc.has(m.nome)),...novos];
@@ -1808,14 +1794,19 @@ async function carregarOneDrive(){
       const rows=await lerAbaExcel(fid,mes);
       if(!rows||rows.length<=1)continue;
       for(let i=1;i<rows.length;i++){
-        const r=rows[i];if(!r[0])continue;
-        // Detecta se col 0 é ID (começa com FRT-) ou Data
-        const temId=String(r[0]||'').startsWith('FRT-');
-        const o=temId?1:0; // offset: se tem ID, dados começam na col 1
+        const r=rows[i];
+        // Detecta se col 0 é ID (FRT-...), vazia (coluna ID inserida mas vazia), ou Data
+        const col0=String(r[0]||'').trim();
+        const temId=col0.startsWith('FRT-');
+        // Col A vazia significa que a coluna ID existe mas ainda não foi preenchida
+        // Nesse caso os dados começam na col 1 (Data está em r[1])
+        const colVazia=col0===''||col0==='ID'||col0==='id';
+        const o=temId?1:colVazia?1:0;
 
-        // Lê data da coluna correta (col 0 sem ID, col 1 com ID)
+        // Lê data da coluna correta
         let di='';
         const rData=String(r[o]||'').trim();
+        if(!rData)continue; // linha realmente vazia
         const rDataN=Number(rData);
         if(!isNaN(rDataN)&&rDataN>1&&rDataN<100000){
           const dt=new Date(Date.UTC(1899,11,30)+rDataN*86400000);
@@ -1863,12 +1854,19 @@ async function carregarOneDrive(){
     if(novos.length>0){
       const chave=d=>`${d.data}|${d.produtor}|${d.hora}`;
       const cc=new Set(novos.map(chave));
+      // Preserva frtId já existente em memória (não sobrescreve com ID temporário)
+      const existMap={};
+      dadosFretes.filter(d=>d.sinc&&d.frtId&&d.frtId.startsWith('FRT-')).forEach(d=>existMap[chave(d)]=d.frtId);
+      novos.forEach(n=>{ if(!n.frtId.startsWith('FRT-')&&existMap[chave(n)]) n.frtId=existMap[chave(n)]; });
       dadosFretes=[...dadosFretes.filter(d=>!d.sinc&&!cc.has(chave(d))),...novos];
       salvarLocal();updateBadges();
     }
     setSinc('ok','Sincronizado');toastOk(novos.length+' fretes carregados.');
     // Migração automática: preenche IDs em linhas que ainda não têm
-    migrarIdsFrentes(fid, abas).catch(e=>console.warn('Migração IDs:',e));
+    // Migração de IDs — roda uma vez por sessão
+    if(!sessionStorage.getItem('frt_migrated')){
+      migrarIdsFrentes(fid, abas).then(()=>sessionStorage.setItem('frt_migrated','1')).catch(e=>console.warn('Migração IDs:',e));
+    }
   }catch(e){setSinc('ok','Conectado');toastErr('Erro ao carregar: '+(e.message||''));}
   finally{document.getElementById('hist-loading').style.display='none';renderAgenda();}
 }
@@ -1886,34 +1884,41 @@ async function migrarIdsFrentes(fileId, abas){
       if(!rows||rows.length<=1)continue;
       for(let i=1;i<rows.length;i++){
         const r=rows[i];
-        if(!r||!r[0])continue; // linha vazia
-        const celA=String(r[0]||'').trim();
-        // Pula se já tem ID ou se col A é cabeçalho
-        if(celA.startsWith('FRT-')||celA==='ID'||celA==='Data'||celA==='id')continue;
-        // Col A tem data (dd/mm/yyyy ou serial) — linha sem ID, precisa migrar
-        const linhaExcel=i+1; // +1 porque row 1 é cabeçalho
+        const col0=String(r[0]||'').trim();
+        const col1=String(r[1]||'').trim();
+        // Já tem ID — pula
+        if(col0.startsWith('FRT-'))continue;
+        // Col A vazia E col B tem data (dd/mm/yyyy ou número) — linha que precisa de ID
+        const col1temData=col1&&(col1.includes('/')||(Number(col1)>1&&Number(col1)<100000));
+        if(!col1temData)continue;
+        const linhaExcel=i+1;
         const novoId=gerarId('FRT');
-        // Define col A como texto e grava o ID
+        // Grava ID na col A como texto
         await fetch(
           `https://graph.microsoft.com/v1.0/me/drive/items/${fileId}/workbook/worksheets/${encodeURIComponent(mes)}/range(address='A${linhaExcel}')`,
           {method:'PATCH',headers:hdrs,body:JSON.stringify({numberFormat:[['@']],values:[[novoId]]})}
         );
-        // Atualiza o frtId no objeto em memória para que edição/exclusão funcione imediatamente
-        const dd=String(r[0]||'').trim();
-        const pt=dd.split('/');
+        // Atualiza em memória para que edição/exclusão funcione imediatamente
+        const pt=col1.split('/');
         if(pt.length===3){
           const dataInterna=`${pt[2]}-${pt[1].padStart(2,'0')}-${pt[0].padStart(2,'0')}`;
-          const fLocal=dadosFretes.find(f=>f.data===dataInterna&&!f.frtId);
+          const horaCol=String(r[2]||'').trim();
+          // Busca por data+hora para evitar match errado em datas duplicadas
+          const fLocal=dadosFretes.find(f=>
+            f.data===dataInterna&&
+            (f.hora===horaCol||!horaCol)&&
+            (!f.frtId||!f.frtId.startsWith('FRT-'))
+          );
           if(fLocal) fLocal.frtId=novoId;
         }
         total++;
-        await delay(300); // pausa entre gravações para não sobrecarregar a API
+        await delay(400);
       }
     }catch(e){console.warn('Migração aba '+mes+':',e);}
   }
   if(total>0){
     salvarLocal();
-    toastOk(`Migração concluída: ${total} registro(s) receberam ID único.`);
+    toastOk(`✓ ${total} agendamento(s) receberam ID único na planilha.`);
   }
 }
 
@@ -1965,17 +1970,16 @@ async function carregarPropsOneDrive(){
       const isNovo=rows[0]&&rows[0][1]==='Apelido';
       props.push({
         id:Date.now()+i*13,
-        cliId:String(r[0]||'').startsWith('CLI-')?r[0]:gerarId('CLI'),
-        nome:String(r[0]||'').startsWith('CLI-')?(r[1]||''):(r[0]||''),
-        apelido:String(r[0]||'').startsWith('CLI-')?(r[2]||''):(isNovo?(r[1]||''):''),
-        comunidade:String(r[0]||'').startsWith('CLI-')?(r[3]||''):(isNovo?(r[2]||''):''),
-        produtor:String(r[0]||'').startsWith('CLI-')?(r[4]||''):(isNovo?(r[3]||''):(r[1]||'')),
-        contato:String(r[0]||'').startsWith('CLI-')?(r[5]||''):(isNovo?(r[4]||''):''),
-        municipio:String(r[0]||'').startsWith('CLI-')?(r[6]||''):(isNovo?(r[5]||''):(r[2]||'')),
-        telefone:String(r[0]||'').startsWith('CLI-')?(r[7]||''):(isNovo?(r[6]||''):(r[3]||'')),
-        lat:String(r[0]||'').startsWith('CLI-')?(r[8]||''):(isNovo?(r[7]||''):(r[4]||'')),
-        lng:String(r[0]||'').startsWith('CLI-')?(r[9]||''):(isNovo?(r[8]||''):(r[5]||'')),
-        obs:String(r[0]||'').startsWith('CLI-')?(r[10]||''):(isNovo?(r[9]||''):(r[6]||'')),
+        nome:r[0]||'',
+        apelido:isNovo?(r[1]||''):'',
+        comunidade:isNovo?(r[2]||''):'',
+        produtor:isNovo?(r[3]||''):(r[1]||''),
+        contato:isNovo?(r[4]||''):'',
+        municipio:isNovo?(r[5]||''):(r[2]||''),
+        telefone:isNovo?(r[6]||''):(r[3]||''),
+        lat:isNovo?(r[7]||''):(r[4]||''),
+        lng:isNovo?(r[8]||''):(r[5]||''),
+        obs:isNovo?(r[9]||''):(r[6]||''),
         sinc:true
       });
     }
@@ -2117,10 +2121,9 @@ async function sincPropriedade(prop){
   try{
     const raiz=odPath.normalize('NFD').replace(/[\u0300-\u036f]/g,'');
     const fid=await getOrCreateExcel(`${raiz}/Clientes_Propriedades.xlsx`);
-    const cab=['ID','Propriedade','Apelido','Comunidade','Produtor','Contato','Municipio','Telefone','Latitude','Longitude','Observacoes'];
+    const cab=['Propriedade','Apelido','Comunidade','Produtor','Contato','Municipio','Telefone','Latitude','Longitude','Observacoes'];
     await garantirAba(fid,'Clientes',cab);
-    if(!prop.cliId) prop.cliId=gerarId('CLI');
-    const linha=[prop.cliId,prop.nome||'',prop.apelido||'',prop.comunidade||'',prop.produtor||'',prop.contato||'',prop.municipio||'',prop.telefone||'',prop.lat||'',prop.lng||'',prop.obs||''];
+    const linha=[prop.nome||'',prop.apelido||'',prop.comunidade||'',prop.produtor||'',prop.contato||'',prop.municipio||'',prop.telefone||'',prop.lat||'',prop.lng||'',prop.obs||''];
     await escreverLinha(fid,'Clientes',linha);
     prop.sinc=true;salvarPropsLocal();toastOk('Propriedade sincronizada ✓');
   }catch(e){toastErr('Erro sinc. prop: '+(e.message||''));}
@@ -2131,10 +2134,9 @@ async function sincVeiculo(v){
   try{
     const raiz=odPath.normalize('NFD').replace(/[\u0300-\u036f]/g,'');
     const fid=await getOrCreateExcel(`${raiz}/Clientes_Propriedades.xlsx`);
-    const cab=['ID','Placa','Nome','Tipo','CapSacas','CapKg','Tara','MotoristaPad','Status','Observacoes'];
+    const cab=['Placa','Nome','Tipo','CapSacas','CapKg','Tara','MotoristaPad','Status','Observacoes'];
     await garantirAba(fid,'Veiculos',cab);
-    if(!v.veiId) v.veiId=gerarId('VEI');
-    const linha=[v.veiId,v.placa||'',v.nome||'',v.tipo||'',v.capSacas||0,v.capKg||0,v.tara||0,v.motoristaPad||'',v.status||'',v.obs||''];
+    const linha=[v.placa||'',v.nome||'',v.tipo||'',v.capSacas||0,v.capKg||0,v.tara||0,v.motoristaPad||'',v.status||'',v.obs||''];
     await escreverLinha(fid,'Veiculos',linha);
     v.sinc=true;salvarVeiculosLocal();toastOk('Veículo sincronizado ✓');
   }catch(e){toastErr('Erro sinc. veículo: '+(e.message||''));}
@@ -2145,10 +2147,9 @@ async function sincMotorista(m){
   try{
     const raiz=odPath.normalize('NFD').replace(/[\u0300-\u036f]/g,'');
     const fid=await getOrCreateExcel(`${raiz}/Clientes_Propriedades.xlsx`);
-    const cab=['ID','Nome','Telefone','CPF','CNH','Categoria','ValidadeCNH','Status','Observacoes'];
+    const cab=['Nome','Telefone','CPF','CNH','Categoria','ValidadeCNH','Status','Observacoes'];
     await garantirAba(fid,'Motoristas',cab);
-    if(!m.motId) m.motId=gerarId('MOT');
-    const linha=[m.motId,m.nome||'',m.tel||'',m.cpf||'',m.cnh||'',m.cat||'',m.vcnh||'',m.status||'',m.obs||''];
+    const linha=[m.nome||'',m.tel||'',m.cpf||'',m.cnh||'',m.cat||'',m.vcnh||'',m.status||'',m.obs||''];
     await escreverLinha(fid,'Motoristas',linha);
     m.sinc=true;salvarMotoristasLocal();toastOk('Motorista sincronizado ✓');
   }catch(e){toastErr('Erro sinc. motorista: '+(e.message||''));}
