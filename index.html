@@ -1001,6 +1001,13 @@ async function calcValorFrete(){
     document.getElementById('f-valor').value=(km*vkm).toFixed(2);
   }
 }
+// Gera um ID único aleatório com prefixo (ex: FRT-A3K9PQ2X)
+function gerarId(prefixo){
+  const chars='ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+  let r='';for(let i=0;i<8;i++)r+=chars[Math.floor(Math.random()*chars.length)];
+  return prefixo+'-'+r;
+}
+
 async function salvarFrete() {
   if(!msToken){toastErr('Conecte ao Microsoft antes de salvar.');return;}
   const data=document.getElementById('f-data').value;
@@ -1026,7 +1033,8 @@ async function salvarFrete() {
   const destProp = (!isNaN(destIdx) && destIdx >= 0) ? dadosPropriedades[destIdx] : null;
   const destinoNome = destProp ? (destProp.apelido||destProp.nome)+(destProp.municipio?' — '+destProp.municipio:'') : '';
   const reg={
-    id:editandoFreteId!==null?editandoFreteId:Date.now(),data,hora:document.getElementById('f-hora').value,
+    id:editandoFreteId!==null?editandoFreteId:Date.now(),
+    frtId:(editandoFreteId!==null?(dadosFretes.find(x=>x.id===editandoFreteId)?.frtId||gerarId('FRT')):gerarId('FRT')),data,hora:document.getElementById('f-hora').value,
     motorista:document.getElementById('f-motorista').value,
     veiculo:vei?vei.placa:'',veiculoNome:vei?vei.nome:'',
     produtor,municipio:document.getElementById('f-municipio').value,
@@ -1048,6 +1056,11 @@ async function salvarFrete() {
     obs:document.getElementById('f-obs').value,
     status:'Agendado',sinc:false
   };
+  // Captura o frete anterior ANTES de sobrescrever no array
+  const freteAnt = editandoFreteId !== null
+    ? dadosFretes.find(x => x.id === editandoFreteId) || null
+    : null;
+
   if(editandoFreteId!==null){
     // EDIÇÃO — substitui o frete existente na memória
     const idx=dadosFretes.findIndex(x=>x.id===editandoFreteId);
@@ -1056,7 +1069,6 @@ async function salvarFrete() {
     dadosFretes.unshift(reg);
   }
   salvarLocal(); updateBadges();
-  const freteAnt=editandoFreteId!==null?dadosFretes.find(x=>x.id===editandoFreteId&&x.sinc):null;
   toastOk('Frete salvo! Sincronizando...'); resetForm();
   await sincFrete(reg, freteAnt);
 }
@@ -1292,19 +1304,29 @@ function editarFreteExistente(id){
   // Motorista
   const mSel=document.getElementById('f-motorista');
   for(let o of mSel.options){if(o.value===f.motorista){mSel.value=f.motorista;break;}}
-  // Veículo
+  // Veículo — busca direto no array por placa
   const vSel=document.getElementById('f-veiculo');
-  for(let i=0;i<vSel.options.length;i++){
-    const v=dadosVeiculos[parseInt(vSel.options[i].value)];
-    if(v&&v.placa===f.veiculo){vSel.value=i;break;}
+  vSel.value='';
+  for(let i=0;i<dadosVeiculos.length;i++){
+    if(dadosVeiculos[i]&&dadosVeiculos[i].placa===f.veiculo){vSel.value=i;break;}
   }
   document.getElementById('f-produtor').value=f.produtor||'';
   document.getElementById('f-municipio').value=f.municipio||'';
-  // Propriedade de origem
+  // Propriedade de origem — busca por nome E produtor para garantir match correto
   const pSel=document.getElementById('f-prop-sel');
-  for(let i=0;i<pSel.options.length;i++){
-    const p=dadosPropriedades[parseInt(pSel.options[i].value)];
-    if(p&&p.nome===f.propNome){pSel.value=parseInt(pSel.options[i].value);onPropSelect();break;}
+  pSel.value='';
+  for(let i=0;i<dadosPropriedades.length;i++){
+    const p=dadosPropriedades[i];
+    if(p && p.nome===f.propNome && p.produtor===f.produtor){
+      pSel.value=i; onPropSelect(); break;
+    }
+  }
+  // Fallback: busca só pelo nome
+  if(!pSel.value){
+    for(let i=0;i<dadosPropriedades.length;i++){
+      const p=dadosPropriedades[i];
+      if(p && p.nome===f.propNome){ pSel.value=i; onPropSelect(); break; }
+    }
   }
   // Tipo de café
   document.getElementById('f-tipo').value=f.tipo||'beneficiado';
@@ -1315,11 +1337,13 @@ function editarFreteExistente(id){
   document.getElementById('f-renda').value=f.renda||'';
   document.getElementById('f-aproveit').value=f.aproveit||'';
   document.getElementById('f-carga-kg').value=f.cargaKg||'';
-  // Destino
+  // Destino — busca direto no array
   const dSel=document.getElementById('f-destino-prop');
-  for(let i=0;i<dSel.options.length;i++){
-    const p=dadosPropriedades[parseInt(dSel.options[i].value)];
-    if(p&&(p.apelido||p.nome)===(f.destino||'').split(' — ')[0]){dSel.value=parseInt(dSel.options[i].value);onDestinoSelect();break;}
+  dSel.value='';
+  const destinoChave=(f.destino||'').split(' — ')[0].trim();
+  for(let i=0;i<dadosPropriedades.length;i++){
+    const p=dadosPropriedades[i];
+    if(p&&(p.apelido||p.nome)===destinoChave){dSel.value=i;onDestinoSelect();break;}
   }
   // Parada intermediária
   if(f.paradaNome){
@@ -1363,12 +1387,17 @@ async function excluirFrete(id){
       if(partes.length===3){
         const ano=parseInt(partes[0]),mesIdx=parseInt(partes[1])-1;
         const mes=MESES[mesIdx];
-        const dd=String(parseInt(partes[2])).padStart(2,'0');
-        const mm=String(mesIdx+1).padStart(2,'0');
-        const dataFmt=`${dd}/${mm}/${ano}`; // DD/MM/AAAA como está na planilha
         const raiz=odPath.normalize('NFD').replace(/[\u0300-\u036f]/g,'');
         const fid=await getOrCreateExcel(`${raiz}/Fretes_${ano}.xlsx`);
-        await excluirLinhaExcel(fid,mes,dataFmt,f.produtor,null);
+        if(f.frtId){
+          // Exclui por ID único (col A) — preciso e sem ambiguidade
+          await excluirLinhaExcel(fid,mes,f.frtId,null,null,0);
+        } else {
+          const dd=String(parseInt(partes[2])).padStart(2,'0');
+          const mm=String(mesIdx+1).padStart(2,'0');
+          const dataFmt=`${dd}/${mm}/${ano}`;
+          await excluirLinhaExcel(fid,mes,dataFmt,f.produtor,null,1);
+        }
       }
     }catch(e){toastErr('Aviso: não foi possível remover do banco: '+(e.message||''));}
   }
@@ -1527,7 +1556,7 @@ function excluirProp(idx){
     (async()=>{try{
       const raiz=odPath.normalize('NFD').replace(/[\u0300-\u036f]/g,'');
       const fid=await getOrCreateExcel(`${raiz}/Clientes_Propriedades.xlsx`);
-      await excluirLinhaExcel(fid,'Clientes',p.nome,p.produtor,null);
+      await excluirLinhaExcel(fid,'Clientes',p.cliId||p.nome,p.cliId?null:p.produtor,null,p.cliId?0:0);
     }catch(e){toastErr('Aviso: não foi possível remover do banco: '+(e.message||''));}})();
   }
 }
@@ -1601,7 +1630,7 @@ function excluirVeiculo(idx){
     (async()=>{try{
       const raiz=odPath.normalize('NFD').replace(/[\u0300-\u036f]/g,'');
       const fid=await getOrCreateExcel(`${raiz}/Clientes_Propriedades.xlsx`);
-      await excluirLinhaExcel(fid,'Veiculos',v.placa,null,null);
+      await excluirLinhaExcel(fid,'Veiculos',v.veiId||v.placa,null,null,0);
     }catch(e){toastErr('Aviso: não foi possível remover do banco: '+(e.message||''));}})();
   }
 }
@@ -1664,7 +1693,7 @@ function excluirMotorista(idx){
     (async()=>{try{
       const raiz=odPath.normalize('NFD').replace(/[\u0300-\u036f]/g,'');
       const fid=await getOrCreateExcel(`${raiz}/Clientes_Propriedades.xlsx`);
-      await excluirLinhaExcel(fid,'Motoristas',m.nome,null,null);
+      await excluirLinhaExcel(fid,'Motoristas',m.motId||m.nome,null,null,0);
     }catch(e){toastErr('Aviso: não foi possível remover do banco: '+(e.message||''));}})();
   }
 }
@@ -1692,9 +1721,16 @@ async function carregarVeiculosMotoristasOneDrive(){
     if(rowsV&&rowsV.length>1){
       const novos=rowsV.slice(1).filter(r=>r[0]).map((r,i)=>({
         id:Date.now()+i*7,sinc:true,
-        placa:String(r[0]||'').toUpperCase(),nome:r[1]||'',tipo:r[2]||'',
-        capSacas:parseInt(r[3])||0,capKg:parseInt(r[4])||0,tara:parseInt(r[5])||0,
-        motoristaPad:r[6]||'',status:r[7]||'Disponível',obs:r[8]||''
+        veiId:String(r[0]||'').startsWith('VEI-')?r[0]:gerarId('VEI'),
+        placa:String(r[0]||'').startsWith('VEI-')?String(r[1]||'').toUpperCase():String(r[0]||'').toUpperCase(),
+        nome:String(r[0]||'').startsWith('VEI-')?(r[2]||''):(r[1]||''),
+        tipo:String(r[0]||'').startsWith('VEI-')?(r[3]||''):(r[2]||''),
+        capSacas:parseInt(String(r[0]||'').startsWith('VEI-')?r[4]:r[3])||0,
+        capKg:parseInt(String(r[0]||'').startsWith('VEI-')?r[5]:r[4])||0,
+        tara:parseInt(String(r[0]||'').startsWith('VEI-')?r[6]:r[5])||0,
+        motoristaPad:String(r[0]||'').startsWith('VEI-')?(r[7]||''):(r[6]||''),
+        status:String(r[0]||'').startsWith('VEI-')?(r[8]||'Disponível'):(r[7]||'Disponível'),
+        obs:String(r[0]||'').startsWith('VEI-')?(r[9]||''):(r[8]||'')
       }));
       const cc=new Set(novos.map(v=>v.placa));
       dadosVeiculos=[...dadosVeiculos.filter(v=>!v.sinc&&!cc.has(v.placa)),...novos];
@@ -1706,8 +1742,15 @@ async function carregarVeiculosMotoristasOneDrive(){
     if(rowsM&&rowsM.length>1){
       const novos=rowsM.slice(1).filter(r=>r[0]).map((r,i)=>({
         id:Date.now()+i*11,sinc:true,
-        nome:r[0]||'',tel:r[1]||'',cpf:r[2]||'',cnh:r[3]||'',
-        cat:r[4]||'',vcnh:fmtData(r[5]||''),status:r[6]||'Ativo',obs:r[7]||''
+        motId:String(r[0]||'').startsWith('MOT-')?r[0]:gerarId('MOT'),
+        nome:String(r[0]||'').startsWith('MOT-')?(r[1]||''):(r[0]||''),
+        tel:String(r[0]||'').startsWith('MOT-')?(r[2]||''):(r[1]||''),
+        cpf:String(r[0]||'').startsWith('MOT-')?(r[3]||''):(r[2]||''),
+        cnh:String(r[0]||'').startsWith('MOT-')?(r[4]||''):(r[3]||''),
+        cat:String(r[0]||'').startsWith('MOT-')?(r[5]||''):(r[4]||''),
+        vcnh:fmtData(String(r[0]||'').startsWith('MOT-')?(r[6]||''):(r[5]||'')),
+        status:String(r[0]||'').startsWith('MOT-')?(r[7]||'Ativo'):(r[6]||'Ativo'),
+        obs:String(r[0]||'').startsWith('MOT-')?(r[8]||''):(r[7]||'')
       }));
       const cc=new Set(novos.map(m=>m.nome));
       dadosMotoristas=[...dadosMotoristas.filter(m=>!m.sinc&&!cc.has(m.nome)),...novos];
@@ -1794,23 +1837,25 @@ async function carregarOneDrive(){
         }
         // Detecta formato novo (27 cols) vs antigo (26 ou menos)
         const novo=r.length>=25;
+        // Detecta se tem coluna ID (col 0 começa com prefixo FRT-)
+        const temId=String(r[0]||'').startsWith('FRT-');
+        const o=temId?1:0; // offset: se tem ID, dados começam na col 1
         novos.push({
-          id:Date.now()+novos.length*11,data:di,
-          hora:horaStr,motorista:r[2]||'',veiculo:r[3]||'',veiculoNome:r[4]||'',
-          produtor:r[5]||'',municipio:r[6]||'',propNome:r[7]||'',
-          propApelido:novo?(r[8]||''):'',propComunidade:novo?(r[9]||''):'',
-          propLat:novo?(r[10]||''):(r[8]||''),propLng:novo?(r[11]||''):(r[9]||''),
-          tipoLabel:novo?(r[12]||''):(r[10]||''),tipo:novo?(r[13]||''):(r[11]||''),
-          sacas:parseFloat(novo?r[14]:r[12])||0,tambores:parseFloat(novo?r[15]:r[13])||0,
-          arrobas:parseFloat(novo?r[16]:r[14])||0,renda:parseFloat(novo?r[17]:r[15])||0,
-          aproveit:parseFloat(novo?r[18]:r[16])||0,
-          cargaKg:parseFloat(novo?r[19]:0)||0,
-          pesoEstimado:parseInt(novo?r[20]:r[17])||0,sacasEquiv:parseFloat(novo?r[21]:r[18])||0,
-          destino:novo?(r[22]||''):(r[19]||''),
-          km:parseInt(novo?r[23]:r[22])||0,
-          valor:parseFloat(novo?r[24]:r[23])||0,
-          obs:novo?(r[25]||''):(r[24]||''),
-          status:novo?(r[26]||'Concluído'):(r[25]||'Concluído'),
+          id:Date.now()+novos.length*11,
+          frtId:temId?(r[0]||''):gerarId('FRT'),
+          data:di,
+          hora:horaStr,motorista:r[o+1]||'',veiculo:r[o+2]||'',veiculoNome:r[o+3]||'',
+          produtor:r[o+4]||'',municipio:r[o+5]||'',propNome:r[o+6]||'',
+          propApelido:r[o+7]||'',propComunidade:r[o+8]||'',
+          propLat:r[o+9]||'',propLng:r[o+10]||'',
+          tipoLabel:r[o+11]||'',tipo:r[o+12]||'',
+          sacas:parseFloat(r[o+13])||0,tambores:parseFloat(r[o+14])||0,
+          arrobas:parseFloat(r[o+15])||0,renda:parseFloat(r[o+16])||0,
+          aproveit:parseFloat(r[o+17])||0,cargaKg:parseFloat(r[o+18])||0,
+          pesoEstimado:parseInt(r[o+19])||0,sacasEquiv:parseFloat(r[o+20])||0,
+          destino:r[o+21]||'',km:parseInt(r[o+22])||0,
+          valor:parseFloat(r[o+23])||0,obs:r[o+24]||'',
+          status:r[o+25]||'Concluído',
           sinc:true,fromCloud:true
         });
       }
@@ -1839,10 +1884,15 @@ async function sincFrete(reg, freteAnterior){
           const anoA=parseInt(partes[0]),mesA=MESES[parseInt(partes[1])-1];
           const raiz=odPath.normalize('NFD').replace(/[\u0300-\u036f]/g,'');
           const fidA=await getOrCreateExcel(`${raiz}/Fretes_${anoA}.xlsx`);
-          const ddA=String(parseInt(partes[2])).padStart(2,'0');
-          const mmA=String(parseInt(partes[1])).padStart(2,'0');
-          const dataFmtA=`${ddA}/${mmA}/${anoA}`;
-          await excluirLinhaExcel(fidA,mesA,dataFmtA,freteAnterior.produtor,null);
+          // Exclui por frtId (col A) se disponível, senão por data+produtor
+          if(freteAnterior.frtId){
+            await excluirLinhaExcel(fidA,mesA,freteAnterior.frtId,null,null,0);
+          } else {
+            const ddA=String(parseInt(partes[2])).padStart(2,'0');
+            const mmA=String(parseInt(partes[1])).padStart(2,'0');
+            const dataFmtA=`${ddA}/${mmA}/${anoA}`;
+            await excluirLinhaExcel(fidA,mesA,dataFmtA,freteAnterior.produtor,null,1);
+          }
         }
       }catch(e2){console.warn('Aviso: não excluiu linha antiga:',e2);}
     }
@@ -1869,16 +1919,17 @@ async function carregarPropsOneDrive(){
       const isNovo=rows[0]&&rows[0][1]==='Apelido';
       props.push({
         id:Date.now()+i*13,
-        nome:r[0]||'',
-        apelido:isNovo?(r[1]||''):'',
-        comunidade:isNovo?(r[2]||''):'',
-        produtor:isNovo?(r[3]||''):(r[1]||''),
-        contato:isNovo?(r[4]||''):'',
-        municipio:isNovo?(r[5]||''):(r[2]||''),
-        telefone:isNovo?(r[6]||''):(r[3]||''),
-        lat:isNovo?(r[7]||''):(r[4]||''),
-        lng:isNovo?(r[8]||''):(r[5]||''),
-        obs:isNovo?(r[9]||''):(r[6]||''),
+        cliId:String(r[0]||'').startsWith('CLI-')?r[0]:gerarId('CLI'),
+        nome:String(r[0]||'').startsWith('CLI-')?(r[1]||''):(r[0]||''),
+        apelido:String(r[0]||'').startsWith('CLI-')?(r[2]||''):(isNovo?(r[1]||''):''),
+        comunidade:String(r[0]||'').startsWith('CLI-')?(r[3]||''):(isNovo?(r[2]||''):''),
+        produtor:String(r[0]||'').startsWith('CLI-')?(r[4]||''):(isNovo?(r[3]||''):(r[1]||'')),
+        contato:String(r[0]||'').startsWith('CLI-')?(r[5]||''):(isNovo?(r[4]||''):''),
+        municipio:String(r[0]||'').startsWith('CLI-')?(r[6]||''):(isNovo?(r[5]||''):(r[2]||'')),
+        telefone:String(r[0]||'').startsWith('CLI-')?(r[7]||''):(isNovo?(r[6]||''):(r[3]||'')),
+        lat:String(r[0]||'').startsWith('CLI-')?(r[8]||''):(isNovo?(r[7]||''):(r[4]||'')),
+        lng:String(r[0]||'').startsWith('CLI-')?(r[9]||''):(isNovo?(r[8]||''):(r[5]||'')),
+        obs:String(r[0]||'').startsWith('CLI-')?(r[10]||''):(isNovo?(r[9]||''):(r[6]||'')),
         sinc:true
       });
     }
@@ -1963,7 +2014,7 @@ async function escreverLinha(fileId, nomeAba, linha){
 }
 
 // Exclui linha do Excel pelo valor da coluna A (e opcionalmente B/C para desambiguação)
-async function excluirLinhaExcel(fileId, nomeAba, valorA, valorB, valorC){
+async function excluirLinhaExcel(fileId, nomeAba, valorA, valorB, valorC, colBusca=0){
   const hdrs={'Authorization':'Bearer '+msToken,'Content-Type':'application/json'};
   // Baixa a aba inteira via SheetJS para encontrar a linha exata
   const rows=await lerAbaExcel(fileId,nomeAba);
@@ -1976,9 +2027,9 @@ async function excluirLinhaExcel(fileId, nomeAba, valorA, valorB, valorC){
   for(let i=1;i<rows.length;i++){
     const r=rows[i];
     if(!r||!r[0])continue;
-    const ra=String(r[0]).trim().toLowerCase();
-    const rb=bStr?String(r[1]||'').trim().toLowerCase():null;
-    const rc=cStr?String(r[2]||'').trim().toLowerCase():null;
+    const ra=String(r[colBusca]||'').trim().toLowerCase();
+    const rb=bStr?String(r[colBusca+1]||'').trim().toLowerCase():null;
+    const rc=cStr?String(r[colBusca+2]||'').trim().toLowerCase():null;
     // Para fretes: valorA=data (dd/mm/yyyy), valorB=produtor, valorC=hora
     // Para clientes: valorA=nome, valorB=produtor
     // Para veículos: valorA=placa
@@ -2007,11 +2058,11 @@ async function appendFrtExcel(reg){
   const mes=MESES[mesIdx];
   const raiz=odPath.normalize('NFD').replace(/[\u0300-\u036f]/g,'');
   const fid=await getOrCreateExcel(`${raiz}/Fretes_${ano}.xlsx`);
-  const cab=['Data','Hora','Motorista','Veiculo','VeiculoNome','Produtor','Municipio','Propriedade','Apelido','Comunidade','Latitude','Longitude','TipoLabel','Tipo','Sacas','Tambores','Arrobas','Renda%','Aproveit%','CargaKg','PesoEstimado_kg','SacasEquiv','Destino','Km','Valor_R$','Observacoes','Status'];
+  const cab=['ID','Data','Hora','Motorista','Veiculo','VeiculoNome','Produtor','Municipio','Propriedade','Apelido','Comunidade','Latitude','Longitude','TipoLabel','Tipo','Sacas','Tambores','Arrobas','Renda%','Aproveit%','CargaKg','PesoEstimado_kg','SacasEquiv','Destino','Km','Valor_R$','Observacoes','Status'];
   await garantirAba(fid,mes,cab);
   // Formata DD/MM/AAAA diretamente das partes — sem depender de Date ou locale
   const df=`${String(dia).padStart(2,'0')}/${String(mesIdx+1).padStart(2,'0')}/${ano}`;
-  const linha=[df,reg.hora||'',reg.motorista||'',reg.veiculo||'',reg.veiculoNome||'',reg.produtor||'',reg.municipio||'',reg.propNome||'',reg.propApelido||'',reg.propComunidade||'',reg.propLat||'',reg.propLng||'',reg.tipoLabel||'',reg.tipo||'',reg.sacas||0,reg.tambores||0,reg.arrobas||0,reg.renda||0,reg.aproveit||0,reg.cargaKg||0,reg.pesoEstimado||0,reg.sacasEquiv||0,reg.destino||'',reg.km||0,reg.valor||0,reg.obs||'',reg.status||''];
+  const linha=[reg.frtId||gerarId('FRT'),df,reg.hora||'',reg.motorista||'',reg.veiculo||'',reg.veiculoNome||'',reg.produtor||'',reg.municipio||'',reg.propNome||'',reg.propApelido||'',reg.propComunidade||'',reg.propLat||'',reg.propLng||'',reg.tipoLabel||'',reg.tipo||'',reg.sacas||0,reg.tambores||0,reg.arrobas||0,reg.renda||0,reg.aproveit||0,reg.cargaKg||0,reg.pesoEstimado||0,reg.sacasEquiv||0,reg.destino||'',reg.km||0,reg.valor||0,reg.obs||'',reg.status||''];
   await escreverLinha(fid,mes,linha);
 }
 
@@ -2020,9 +2071,10 @@ async function sincPropriedade(prop){
   try{
     const raiz=odPath.normalize('NFD').replace(/[\u0300-\u036f]/g,'');
     const fid=await getOrCreateExcel(`${raiz}/Clientes_Propriedades.xlsx`);
-    const cab=['Propriedade','Apelido','Comunidade','Produtor','Contato','Municipio','Telefone','Latitude','Longitude','Observacoes'];
+    const cab=['ID','Propriedade','Apelido','Comunidade','Produtor','Contato','Municipio','Telefone','Latitude','Longitude','Observacoes'];
     await garantirAba(fid,'Clientes',cab);
-    const linha=[prop.nome||'',prop.apelido||'',prop.comunidade||'',prop.produtor||'',prop.contato||'',prop.municipio||'',prop.telefone||'',prop.lat||'',prop.lng||'',prop.obs||''];
+    if(!prop.cliId) prop.cliId=gerarId('CLI');
+    const linha=[prop.cliId,prop.nome||'',prop.apelido||'',prop.comunidade||'',prop.produtor||'',prop.contato||'',prop.municipio||'',prop.telefone||'',prop.lat||'',prop.lng||'',prop.obs||''];
     await escreverLinha(fid,'Clientes',linha);
     prop.sinc=true;salvarPropsLocal();toastOk('Propriedade sincronizada ✓');
   }catch(e){toastErr('Erro sinc. prop: '+(e.message||''));}
@@ -2033,9 +2085,10 @@ async function sincVeiculo(v){
   try{
     const raiz=odPath.normalize('NFD').replace(/[\u0300-\u036f]/g,'');
     const fid=await getOrCreateExcel(`${raiz}/Clientes_Propriedades.xlsx`);
-    const cab=['Placa','Nome','Tipo','CapSacas','CapKg','Tara','MotoristaPad','Status','Observacoes'];
+    const cab=['ID','Placa','Nome','Tipo','CapSacas','CapKg','Tara','MotoristaPad','Status','Observacoes'];
     await garantirAba(fid,'Veiculos',cab);
-    const linha=[v.placa||'',v.nome||'',v.tipo||'',v.capSacas||0,v.capKg||0,v.tara||0,v.motoristaPad||'',v.status||'',v.obs||''];
+    if(!v.veiId) v.veiId=gerarId('VEI');
+    const linha=[v.veiId,v.placa||'',v.nome||'',v.tipo||'',v.capSacas||0,v.capKg||0,v.tara||0,v.motoristaPad||'',v.status||'',v.obs||''];
     await escreverLinha(fid,'Veiculos',linha);
     v.sinc=true;salvarVeiculosLocal();toastOk('Veículo sincronizado ✓');
   }catch(e){toastErr('Erro sinc. veículo: '+(e.message||''));}
@@ -2046,9 +2099,10 @@ async function sincMotorista(m){
   try{
     const raiz=odPath.normalize('NFD').replace(/[\u0300-\u036f]/g,'');
     const fid=await getOrCreateExcel(`${raiz}/Clientes_Propriedades.xlsx`);
-    const cab=['Nome','Telefone','CPF','CNH','Categoria','ValidadeCNH','Status','Observacoes'];
+    const cab=['ID','Nome','Telefone','CPF','CNH','Categoria','ValidadeCNH','Status','Observacoes'];
     await garantirAba(fid,'Motoristas',cab);
-    const linha=[m.nome||'',m.tel||'',m.cpf||'',m.cnh||'',m.cat||'',m.vcnh||'',m.status||'',m.obs||''];
+    if(!m.motId) m.motId=gerarId('MOT');
+    const linha=[m.motId,m.nome||'',m.tel||'',m.cpf||'',m.cnh||'',m.cat||'',m.vcnh||'',m.status||'',m.obs||''];
     await escreverLinha(fid,'Motoristas',linha);
     m.sinc=true;salvarMotoristasLocal();toastOk('Motorista sincronizado ✓');
   }catch(e){toastErr('Erro sinc. motorista: '+(e.message||''));}
