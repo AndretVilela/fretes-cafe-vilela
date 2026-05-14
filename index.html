@@ -2056,15 +2056,15 @@ async function escreverLinha(fileId, nomeAba, linha){
   }catch(e){nextRow=2;}
   const cols=linha.length;
   const lc=cols<=26?String.fromCharCode(64+cols):'A'+String.fromCharCode(64+cols-26);
-  // CRÍTICO: numberFormat e values no MESMO PATCH
-  // Dois PATCHes separados não garantem ordem — o Excel pode interpretar
-  // a data como MM/DD antes do formato '@' ser aplicado.
-  // Todas as colunas recebem '@' (texto) para evitar qualquer conversão automática.
-  const fmt=linha.map(()=>['@']);
-  const wr=await fetch(
-    `https://graph.microsoft.com/v1.0/me/drive/items/${fileId}/workbook/worksheets/${encodeURIComponent(nomeAba)}/range(address='A${nextRow}:${lc}${nextRow}')`,
-    {method:'PATCH',headers:hdrs,body:JSON.stringify({numberFormat:fmt,values:[linha]})}
-  );
+  const range=`https://graph.microsoft.com/v1.0/me/drive/items/${fileId}/workbook/worksheets/${encodeURIComponent(nomeAba)}/range(address='A${nextRow}:${lc}${nextRow}')`;
+  // Passo 1: define formato texto em TODAS as colunas da linha
+  // await garante que o formato é aplicado ANTES dos valores
+  await fetch(range,{method:'PATCH',headers:hdrs,
+    body:JSON.stringify({numberFormat:linha.map(()=>['@'])})});
+  await delay(300);
+  // Passo 2: grava os valores — células já estão formatadas como texto
+  const wr=await fetch(range,{method:'PATCH',headers:hdrs,
+    body:JSON.stringify({values:[linha]})});
   if(!wr.ok){const e=await wr.json().catch(()=>({}));throw new Error('Escrever linha: '+wr.status+' '+(e.error?.message||''));}
 }
 
