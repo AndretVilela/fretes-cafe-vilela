@@ -1004,8 +1004,20 @@ async function calcValorFrete(){
 // Gera um ID único aleatório com prefixo (ex: FRT-A3K9PQ2X)
 function gerarId(prefixo){
   const chars='ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
-  let r='';for(let i=0;i<8;i++)r+=chars[Math.floor(Math.random()*chars.length)];
-  return prefixo+'-'+r;
+  // Coleta todos os IDs já existentes em memória para garantir unicidade
+  const existentes=new Set(dadosFretes.map(f=>f.frtId).filter(Boolean));
+  let tentativas=0;
+  while(tentativas<20){
+    let r='';
+    // Usa timestamp + random para reduzir ainda mais a chance de colisão
+    const ts=Date.now().toString(36).toUpperCase().slice(-4);
+    for(let i=0;i<8;i++) r+=chars[Math.floor(Math.random()*chars.length)];
+    const id=`${prefixo}-${r}${ts}`;
+    if(!existentes.has(id)) return id;
+    tentativas++;
+  }
+  // Fallback com timestamp completo — matematicamente impossível colidir
+  return `${prefixo}-${Date.now().toString(36).toUpperCase()}`;
 }
 
 async function salvarFrete() {
@@ -1283,7 +1295,7 @@ function verDetalhe(id){
   let btns=`<button class="btn btn-secondary" onclick="closeModal('frete')" style="flex:1">Fechar</button><button class="btn btn-sm" style="background:var(--cafe-mid);color:#fff" onclick="editarFreteExistente(${f.id})">✏️ Editar</button>`;
   if(f.status==='Agendado') btns+=`<button class="btn btn-green" onclick="mudarStatus(${f.id},'Em Rota')" style="flex:1">▶ Iniciar</button>`;
   if(f.status==='Em Rota')  btns+=`<button class="btn btn-primary" onclick="mudarStatus(${f.id},'Concluído')" style="flex:1">✓ Concluir</button>`;
-  if(f.status!=='Cancelado'&&f.status!=='Concluído') btns+=`<button class="btn btn-danger btn-sm" onclick="mudarStatus(${f.id},'Cancelado')">✕</button>`;
+  if(f.status!=='Cancelado'&&f.status!=='Concluído') btns+=`<button class="btn btn-danger btn-sm" onclick="closeModal('frete');excluirFrete(${f.id})" title="Excluir agendamento">🗑 Excluir</button>`;
   btns+=`<button class="btn btn-wa btn-sm" onclick="compartilharWA(${f.id})">WhatsApp</button>`;
   btns+=`<button class="btn btn-pdf btn-sm" onclick="compartilharPDF(${f.id})">PDF</button>`;
   document.getElementById('mf-foot').innerHTML=btns;
@@ -1372,9 +1384,10 @@ function mudarStatus(id,novoStatus){
 }
 
 async function excluirFrete(id){
-  if(!confirm('Excluir este agendamento? A linha será removida do banco de dados.'))return;
   const f=dadosFretes.find(x=>x.id===id);
   if(!f)return;
+  const df=f.data?f.data.split('-').reverse().join('/'):'?';
+  if(!confirm(`⚠️ Confirmar exclusão\n\nProdutor: ${f.produtor||'—'}\nData: ${df}\nStatus: ${f.status}\n\nEsta ação removerá o agendamento da planilha e não pode ser desfeita.\n\nDeseja continuar?`))return;
   // Remove localmente
   dadosFretes=dadosFretes.filter(x=>x.id!==id);
   salvarLocal();updateBadges();renderAgenda();
