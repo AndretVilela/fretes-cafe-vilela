@@ -1379,27 +1379,10 @@ async function excluirFrete(id){
   dadosFretes=dadosFretes.filter(x=>x.id!==id);
   salvarLocal();updateBadges();renderAgenda();
   toastOk('Agendamento excluído.');
-  // Remove do Excel se sincronizado
-  if(msToken&&f.sinc){
-    try{
-      // Parse direto da string yyyy-mm-dd sem new Date (evita problema de fuso)
-      const partes=(f.data||'').split('-');
-      if(partes.length===3){
-        const ano=parseInt(partes[0]),mesIdx=parseInt(partes[1])-1;
-        const mes=MESES[mesIdx];
-        const raiz=odPath.normalize('NFD').replace(/[\u0300-\u036f]/g,'');
-        const fid=await getOrCreateExcel(`${raiz}/Fretes_${ano}.xlsx`);
-        if(f.frtId){
-          // Exclui por ID único (col A) — preciso e sem ambiguidade
-          await excluirLinhaExcel(fid,mes,f.frtId,null,null,0);
-        } else {
-          const dd=String(parseInt(partes[2])).padStart(2,'0');
-          const mm=String(mesIdx+1).padStart(2,'0');
-          const dataFmt=`${dd}/${mm}/${ano}`;
-          await excluirLinhaExcel(fid,mes,dataFmt,f.produtor,null,1);
-        }
-      }
-    }catch(e){toastErr('Aviso: não foi possível remover do banco: '+(e.message||''));}
+  // Remove do Excel buscando em todas as abas (mesmo se o mês foi alterado)
+  if(msToken){
+    try{ await excluirFretePorId(f); }
+    catch(e){toastErr('Aviso: não foi possível remover do banco: '+(e.message||''));}
   }
 }
 
@@ -1815,7 +1798,9 @@ async function carregarOneDrive(){
             di=`${yy}-${mm}-${dd}`;
           }
         } else {
-          const pt=rData.split('/');
+          // Trata tanto DD/MM/AAAA (barras) quanto DD.MM.AAAA (pontos)
+          const sep=rData.includes('/')?'/':'.';
+          const pt=rData.split(sep);
           if(pt.length===3)di=`${pt[2]}-${pt[1].padStart(2,'0')}-${pt[0].padStart(2,'0')}`;
         }
         if(!di)continue;
@@ -1927,29 +1912,49 @@ async function sincFrete(reg, freteAnterior){
   try{
     const tr=await fetch('https://graph.microsoft.com/v1.0/me',{headers:{Authorization:'Bearer '+msToken}});
     if(!tr.ok){localStorage.removeItem(TOKEN_KEY);localStorage.removeItem(TOKEN_EXP);msToken=null;setDesconectado();throw new Error('Sessão expirada. Reconecte.');}
-    // Se é edição, excluir a linha antiga antes de inserir a nova
-    if(freteAnterior&&freteAnterior.sinc){
-      try{
-        const partes=(freteAnterior.data||'').split('-');
-        if(partes.length===3){
-          const anoA=parseInt(partes[0]),mesA=MESES[parseInt(partes[1])-1];
-          const raiz=odPath.normalize('NFD').replace(/[\u0300-\u036f]/g,'');
-          const fidA=await getOrCreateExcel(`${raiz}/Fretes_${anoA}.xlsx`);
-          // Exclui por frtId (col A) se disponível, senão por data+produtor
-          if(freteAnterior.frtId){
-            await excluirLinhaExcel(fidA,mesA,freteAnterior.frtId,null,null,0);
-          } else {
-            const ddA=String(parseInt(partes[2])).padStart(2,'0');
-            const mmA=String(parseInt(partes[1])).padStart(2,'0');
-            const dataFmtA=`${ddA}/${mmA}/${anoA}`;
-            await excluirLinhaExcel(fidA,mesA,dataFmtA,freteAnterior.produtor,null,1);
-          }
-        }
-      }catch(e2){console.warn('Aviso: não excluiu linha antiga:',e2);}
+    // Se é edição, excluir a linha antiga buscando em TODAS as abas/anos
+    if(freteAnterior){
+      try{ await excluirFretePorId(freteAnterior); }
+      catch(e2){console.warn('Aviso: não excluiu linha antiga:',e2);}
     }
     await appendFrtExcel(reg);
     reg.sinc=true;salvarLocal();setSinc('ok','Sincronizado');toastOk('Frete sincronizado ✓');
   }catch(e){setSinc('error','Erro');toastErr('Erro: '+(e.message||''));}
+}
+
+// Localiza e exclui um frete pelo frtId varrendo TODAS as abas do arquivo do ano.
+// Cobre o caso de edição que muda o mês ou o ano — o ID é único, está em qualquer aba.
+async function excluirFretePorId(frete){
+  const raiz=odPath.normalize('NFD').replace(/[\u0300-\u036f]/g,'');
+  // Pesquisa no ano da data do frete E no ano atual (cobre mudança de ano)
+  const anos=new Set([new Date().getFullYear()]);
+  if(frete.data){const p=frete.data.split('-');if(p.length===3)anos.add(parseInt(p[0]));}
+  for(const ano of anos){
+    const enc=`${raiz}/Fretes_${ano}.xlsx`.split('/').map(p=>encodeURIComponent(p)).join('/');
+    const ck=await fetch(`https://graph.microsoft.com/v1.0/me/drive/root:/${enc}`,{headers:{Authorization:'Bearer '+msToken}});
+    if(!ck.ok)continue;
+    const fid=(await ck.json()).id;
+    // Lista todas as abas do arquivo (todos os meses)
+    const wsR=await fetch(`https://graph.microsoft.com/v1.0/me/drive/items/${fid}/workbook/worksheets`,{headers:{Authorization:'Bearer '+msToken}});
+    if(!wsR.ok)continue;
+    const abas=(await wsR.json()).value.map(s=>s.name).filter(n=>MESES.includes(n));
+    for(const aba of abas){
+      let ok=false;
+      if(frete.frtId&&frete.frtId.startsWith('FRT-')){
+        // Busca pelo ID único na col A — preciso, sem risco de excluir dado errado
+        ok=await excluirLinhaExcel(fid,aba,frete.frtId,null,null,0);
+      } else if(frete.data){
+        // Fallback para registros sem frtId: busca por data formatada + produtor
+        const p=frete.data.split('-');
+        if(p.length===3){
+          const dd=String(parseInt(p[2])).padStart(2,'0'),mm=String(parseInt(p[1])).padStart(2,'0');
+          ok=await excluirLinhaExcel(fid,aba,`${dd}.${mm}.${ano}`,frete.produtor,null,1);
+          if(!ok) ok=await excluirLinhaExcel(fid,aba,`${dd}/${mm}/${ano}`,frete.produtor,null,1);
+        }
+      }
+      if(ok) return; // encontrou e excluiu — para a varredura
+    }
+  }
 }
 
 // ONEDRIVE — PROPRIEDADES
@@ -2046,25 +2051,11 @@ async function garantirAba(fileId, nomeAba, cabecalho){
 async function escreverLinha(fileId, nomeAba, linha){
   const hdrs={'Authorization':'Bearer '+msToken,'Content-Type':'application/json'};
   await delay(1000);
-  let nextRow=2;
-  try{
-    const rows=await lerAbaExcel(fileId,nomeAba);
-    if(rows&&rows.length>0){
-      const p=rows.filter(r=>r&&r[0]!==''&&r[0]!==null&&r[0]!==undefined).length;
-      nextRow=Math.max(p,1)+1;
-    }
-  }catch(e){nextRow=2;}
+  let nextRow=2;try{const rows=await lerAbaExcel(fileId,nomeAba);if(rows&&rows.length>0){const p=rows.filter(r=>r&&r[0]!==''&&r[0]!==null&&r[0]!==undefined).length;nextRow=Math.max(p,1)+1;}}catch(e){nextRow=2;}
   const cols=linha.length;
   const lc=cols<=26?String.fromCharCode(64+cols):'A'+String.fromCharCode(64+cols-26);
-  const range=`https://graph.microsoft.com/v1.0/me/drive/items/${fileId}/workbook/worksheets/${encodeURIComponent(nomeAba)}/range(address='A${nextRow}:${lc}${nextRow}')`;
-  // Passo 1: define formato texto em TODAS as colunas da linha
-  // await garante que o formato é aplicado ANTES dos valores
-  await fetch(range,{method:'PATCH',headers:hdrs,
-    body:JSON.stringify({numberFormat:linha.map(()=>['@'])})});
-  await delay(300);
-  // Passo 2: grava os valores — células já estão formatadas como texto
-  const wr=await fetch(range,{method:'PATCH',headers:hdrs,
-    body:JSON.stringify({values:[linha]})});
+  const wr=await fetch(`https://graph.microsoft.com/v1.0/me/drive/items/${fileId}/workbook/worksheets/${encodeURIComponent(nomeAba)}/range(address='A${nextRow}:${lc}${nextRow}')`,
+    {method:'PATCH',headers:hdrs,body:JSON.stringify({values:[linha]})});
   if(!wr.ok){const e=await wr.json().catch(()=>({}));throw new Error('Escrever linha: '+wr.status+' '+(e.error?.message||''));}
 }
 
@@ -2094,7 +2085,7 @@ async function excluirLinhaExcel(fileId, nomeAba, valorA, valorB, valorC, colBus
     const matchC=!cStr||(rc&&rc===cStr);
     if(matchA&&matchB&&matchC){linhaExcel=i+1;break;} // +1 porque Excel é 1-indexed e row 1 é cabeçalho
   }
-  if(linhaExcel<2)return; // não encontrado
+  if(linhaExcel<2)return false; // não encontrado
   // Deleta a linha via Workbook API
   await delay(500);
   const del=await fetch(
@@ -2102,6 +2093,7 @@ async function excluirLinhaExcel(fileId, nomeAba, valorA, valorB, valorC, colBus
     {method:'POST',headers:hdrs,body:JSON.stringify({shift:'Up'})}
   );
   if(!del.ok){const e=await del.json().catch(()=>({}));throw new Error('Excluir linha: '+del.status+' '+(e.error?.message||''));}
+  return true;
 }
 
 async function appendFrtExcel(reg){
@@ -2115,8 +2107,9 @@ async function appendFrtExcel(reg){
   const fid=await getOrCreateExcel(`${raiz}/Fretes_${ano}.xlsx`);
   const cab=['ID','Data','Hora','Motorista','Veiculo','VeiculoNome','Produtor','Municipio','Propriedade','Apelido','Comunidade','Latitude','Longitude','TipoLabel','Tipo','Sacas','Tambores','Arrobas','Renda%','Aproveit%','CargaKg','PesoEstimado_kg','SacasEquiv','Destino','Km','Valor_R$','Observacoes','Status'];
   await garantirAba(fid,mes,cab);
-  // Formata DD/MM/AAAA diretamente das partes — sem depender de Date ou locale
-  const df=`${String(dia).padStart(2,'0')}/${String(mesIdx+1).padStart(2,'0')}/${ano}`;
+  // Formata DD.MM.AAAA com pontos — Excel NUNCA converte este formato automaticamente
+  // Barras (DD/MM/AAAA) são convertidas pelo Excel Online dependendo do locale do servidor
+  const df=`${String(dia).padStart(2,'0')}.${String(mesIdx+1).padStart(2,'0')}.${ano}`;
   const linha=[reg.frtId||gerarId('FRT'),df,reg.hora||'',reg.motorista||'',reg.veiculo||'',reg.veiculoNome||'',reg.produtor||'',reg.municipio||'',reg.propNome||'',reg.propApelido||'',reg.propComunidade||'',reg.propLat||'',reg.propLng||'',reg.tipoLabel||'',reg.tipo||'',reg.sacas||0,reg.tambores||0,reg.arrobas||0,reg.renda||0,reg.aproveit||0,reg.cargaKg||0,reg.pesoEstimado||0,reg.sacasEquiv||0,reg.destino||'',reg.km||0,reg.valor||0,reg.obs||'',reg.status||''];
   await escreverLinha(fid,mes,linha);
 }
